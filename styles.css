@@ -534,3 +534,66 @@ table th.col-check, table td.col-check{text-align:center}
 .landscape-export-card .result-brand-signature{text-align:right}.landscape-export-card .result-brand-signature b{font-size:26px}.landscape-export-card .result-brand-signature span{font-size:10px;color:#97abc0;display:block}
 .story-chart .chart-wrap,.certificate-chart .chart-wrap{height:auto}
 @media(max-width:1080px){.color-mix-legend{grid-template-columns:1fr}.bulk-action-row{width:100%}.confirm-actions .btn{width:100%}}
+
+
+/* ===== V11 projector auto-refresh + dashboard export + notice modal ===== */
+.notice-modal-card{max-width:520px;text-align:center;padding:30px 28px}
+.notice-icon{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;color:#fff;font:700 32px/1 "Kanit";box-shadow:0 18px 50px rgba(0,0,0,.28)}
+.notice-icon.success{background:linear-gradient(135deg,rgba(55,216,137,.96),rgba(92,174,255,.96))}
+.notice-icon.danger{background:linear-gradient(135deg,rgba(255,88,112,.96),rgba(255,170,0,.96))}
+.notice-icon.info{background:linear-gradient(135deg,rgba(104,116,255,.96),rgba(92,216,255,.96))}
+.projector-updated{margin:8px 0 0;color:#8eb6d7;font-size:14px}
+.projector{position:fixed;inset:0;z-index:80;background:radial-gradient(circle at 20% 16%,rgba(85,117,255,.14),transparent 24%),radial-gradient(circle at 78% 20%,rgba(170,97,255,.12),transparent 22%),linear-gradient(180deg,#050d18,#07111e);padding:30px;overflow:auto}
+.projector::before{content:"";position:fixed;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 30%,transparent 70%,rgba(255,255,255,.02));pointer-events:none;opacity:.55}
+.projector.refresh-flash{animation:projectorRefreshFlash .8s ease}
+@keyframes projectorRefreshFlash{0%{filter:brightness(1.12)}100%{filter:brightness(1)}}
+.projector-stats>div{position:relative;overflow:hidden}
+.projector-stats>div::after{content:"";position:absolute;inset:-120% auto -120% -40%;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);transform:skewX(-20deg);animation:statShimmer 5s linear infinite}
+@keyframes statShimmer{0%{left:-40%}100%{left:120%}}
+.dashboard-export-card{position:relative;overflow:hidden;width:1920px;min-height:1080px;border-radius:42px;padding:42px;display:grid;grid-template-rows:170px 180px 1fr;gap:24px;color:#eff6ff;background:radial-gradient(circle at 14% 10%,rgba(111,151,255,.18),transparent 28%),radial-gradient(circle at 84% 82%,rgba(82,231,192,.13),transparent 30%),radial-gradient(circle at 82% 8%,rgba(166,94,255,.12),transparent 26%),linear-gradient(180deg,#09192c,#06111e);box-shadow:0 50px 140px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04)}
+.dashboard-export-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.04),transparent 18%,transparent 78%,rgba(255,255,255,.03));pointer-events:none}
+.dashboard-export-head{display:grid;grid-template-columns:1fr auto;gap:28px;align-items:start;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.dashboard-export-head h1{font-family:"Kanit";font-size:66px;line-height:.95;margin:8px 0 8px}.dashboard-export-head p{font-size:17px;color:#c4d2e2;margin:0}
+.export-stamp{display:flex;flex-direction:column;gap:10px;align-items:flex-end}.export-stamp .live-chip{font-size:13px}.export-stamp .stamp-text{font-size:14px;color:#a8bdd3;text-align:right}
+.dashboard-stat-grid{display:grid;grid-template-columns:1.1fr repeat(4,1fr);gap:18px}.dashboard-export-card .stat-card{min-height:140px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.022));border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:22px 24px;display:flex;flex-direction:column;justify-content:center}
+.dashboard-export-card .stat-card strong{font-size:64px;line-height:1}.dashboard-export-card .stat-card small,.dashboard-export-card .stat-card span{color:#b8cade}
+.dashboard-export-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:22px}.dashboard-export-grid .result-panel{padding:28px;border-radius:30px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.022));border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.dashboard-export-grid .admin-radar{min-height:520px}.dashboard-footer-note{display:grid;grid-template-columns:1fr auto;gap:20px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);margin-top:16px;color:#9db4cb;font-size:13px}
+.dashboard-footer-note b{font-size:26px;color:#fff}
+
+
+/* ===== V12 immersive home + advanced radar + projector carousel ===== */
+.compact-profile-form{max-width:100%}
+.compact-profile-form>label{margin-bottom:18px}
+/* home wheel: continuously rotating color field, counter-rotating center */
+.hero-visual .color-wheel{animation:homeWheelSpin 28s linear infinite!important;transform-style:preserve-3d}
+.hero-visual .wheel-core{animation:homeWheelCounterSpin 28s linear infinite;box-shadow:0 0 0 1px rgba(255,255,255,.16),0 0 58px rgba(98,154,255,.18),0 0 110px rgba(74,222,187,.08)}
+.hero-visual .ring-1{animation:orbitSpin 20s linear infinite!important}.hero-visual .ring-2{animation:orbitSpinReverse 28s linear infinite!important}
+.hero-visual .orbital-ring::before,.hero-visual .orbital-ring::after{content:"";position:absolute;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle,#fff 0 20%,#77c9ff 36%,rgba(119,201,255,0) 72%);box-shadow:0 0 28px rgba(104,187,255,.85)}
+.hero-visual .orbital-ring::before{left:50%;top:-5px}.hero-visual .orbital-ring::after{right:-5px;top:50%;background:radial-gradient(circle,#fff 0 20%,#62e4b6 36%,rgba(98,228,182,0) 72%);box-shadow:0 0 28px rgba(98,228,182,.82)}
+.hero-visual .energy-pulse{animation:homeEnergyPulse 6s ease-in-out infinite!important}.hero-visual .ep-2{animation-delay:-2s!important}.hero-visual .ep-3{animation-delay:-4s!important}
+@keyframes homeWheelSpin{from{transform:rotate(0deg) translateY(0)}50%{filter:brightness(1.08)}to{transform:rotate(360deg) translateY(0)}}
+@keyframes homeWheelCounterSpin{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes orbitSpin{to{transform:rotate(360deg)}}@keyframes orbitSpinReverse{to{transform:rotate(-360deg)}}
+@keyframes homeEnergyPulse{0%,100%{transform:scale(.92);opacity:.12}50%{transform:scale(1.08);opacity:.46}}
+/* advanced chart ambience */
+.admin-chart-card .chart-wrap,.dna-panel .chart-wrap,.projector .proj-chart,.projector .proj-doughnut{isolation:isolate}
+.admin-chart-card .chart-wrap::before,.dna-panel .chart-wrap::before,.projector .proj-chart::before,.projector .proj-doughnut::before{content:"";position:absolute;inset:12%;border-radius:50%;background:radial-gradient(circle,rgba(98,148,255,.10),transparent 58%);filter:blur(16px);animation:radarBreath 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes radarBreath{0%,100%{transform:scale(.92);opacity:.45}50%{transform:scale(1.06);opacity:.95}}
+/* Projector carousel */
+.projector-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.projector-stage{position:relative;min-height:calc(100vh - 175px);overflow:hidden}
+.projector-slide{position:absolute;inset:0;opacity:0;transform:translateX(4%) scale(.985);pointer-events:none;transition:opacity .75s ease,transform .75s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;justify-content:center}
+.projector-slide.active{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
+.projector-slide.exit-left{opacity:0;transform:translateX(-4%) scale(.985)}
+.projector-slide-title{text-align:center;margin:0 auto 22px}.projector-slide-title span{font-size:12px;letter-spacing:.22em;color:#6ed9ff}.projector-slide-title h3{font-family:"Kanit";font-size:clamp(34px,4vw,62px);margin:6px 0 0}
+.projector-color-grid,.projector-team-layout{display:grid;grid-template-columns:1.05fr .95fr;gap:30px;align-items:center;max-width:1500px;width:100%;margin:0 auto}
+.proj-doughnut{height:560px;position:relative}.proj-doughnut canvas{width:100%!important;height:100%!important}
+.projector-color-legend{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.projector-color-item{padding:24px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));border-radius:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.projector-color-item b{display:flex;align-items:center;gap:10px;font-size:22px}.projector-color-item b i{width:14px;height:14px;border-radius:50%}.projector-color-item strong{display:block;font-family:"Kanit";font-size:58px;line-height:1;margin-top:12px}.projector-color-item span{color:#9db4cb;font-size:15px}
+.projector-pagination{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);display:flex;gap:9px;z-index:3}.projector-pagination button{width:34px;height:5px;border:0;border-radius:999px;background:rgba(255,255,255,.18);padding:0;transition:.3s}.projector-pagination button.active{width:64px;background:linear-gradient(90deg,#6575ff,#58d8ff)}
+.projector.tv-mode{padding:18px 26px}.projector.tv-mode .projector-top{padding-bottom:8px}.projector.tv-mode .projector-note{opacity:.45}.projector.tv-mode .projector-slide-title h3{font-size:clamp(46px,4.6vw,76px)}
+.projector.tv-mode .projector-stats>div b{font-size:clamp(44px,5vw,78px)}
+@media(max-width:980px){.projector-color-grid,.projector-team-layout{grid-template-columns:1fr}.projector-stage{min-height:1100px}.projector-color-legend{grid-template-columns:1fr 1fr}.proj-doughnut{height:440px}}
+@media(max-width:640px){.projector-color-legend{grid-template-columns:1fr}.projector-pagination{bottom:16px}.hero-visual .color-wheel{animation-duration:36s!important}}

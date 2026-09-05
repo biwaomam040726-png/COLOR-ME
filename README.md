@@ -325,3 +325,18 @@ biwaomam040726-png.github.io
 - ไฮไลต์คำทีละคำเพื่อให้รู้สึกว่าระบบกำลังประมวลผลจริง
 - หน้าสรุป Desktop จัดให้เห็นข้อมูลหลักครบในจอเดียวโดยไม่ต้องเลื่อน
 - Result Card อัตราส่วน 16:9 พร้อมชื่อผู้ทำ, Radar, ลายเซ็นความเป็นคุณ และคำแนะนำการสื่อสาร
+
+
+---
+
+## V12 — Motion Radar + Auto Projector + TV Display
+
+- หน้า Profile เหลือเฉพาะชื่อและหน่วยงาน/กลุ่ม ไม่มีช่องอีเมลผู้เข้าร่วม และไม่มีบล็อกการเก็บข้อมูลในหน้าผู้เข้าร่วม
+- หน้าแรกวงล้อ 4 สีหมุนต่อเนื่อง พร้อมวงโคจรและ energy pulse
+- กราฟเฉลี่ยของกลุ่มเป็น layered gradient radar พร้อมเส้น pulse วิ่งไล่รอบ polygon
+- Doughnut สัดส่วนสีเด่นแสดงเปอร์เซ็นต์ของชิ้นที่ Hover ทั้งใน tooltip และกลางวง
+- Projector Mode สลับ 3 หน้าสรุปอัตโนมัติ: Overview / Color Mix / Team DNA
+- TV Display เปิด Fullscreen และสลับหน้าสรุปอัตโนมัติสำหรับจอใหญ่
+
+### สำคัญ: Firestore Rules เปลี่ยนใน V12
+เพราะหน้า Participant ไม่มี consent field แล้ว ต้องนำ `firestore.rules` ของ V12 ไปวางที่ Firebase Console > Firestore > Rules แล้วกด Publish ก่อนใช้งานจริง

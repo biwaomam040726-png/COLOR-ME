@@ -41,9 +41,9 @@ const DEFAULT_CONFIG={
 let state={
   profile:{},selected:[],result:null,responses:[],sessions:[],activeSession:null,selectedResponseIds:[],liveUpdatedAt:null,
   demoMode:false,firebaseReady:false,currentAdmin:null,config:structuredClone(DEFAULT_CONFIG),
-  unsubscribeResponses:null,unsubscribeSessions:null
+  unsubscribeResponses:null,unsubscribeSessions:null,projectorTimer:null,projectorSlideTimer:null,projectorSlide:0,projectorMode:"projector",chartMotionStarted:false
 };
-let charts={result:null,adminRadar:null,adminDoughnut:null,detail:null,team:null,projector:null};
+let charts={result:null,adminRadar:null,adminDoughnut:null,detail:null,team:null,projector:null,projectorDoughnut:null,projectorTeam:null};
 let fb={};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const COLORS=["think","fight","fine","do"];
@@ -74,12 +74,22 @@ function openConfirmModal({title="ยืนยันการทำรายก�
     openModal("#modalConfirm");
   });
 }
+function openNoticeModal({title="สำเร็จแล้ว",message="รายการของคุณดำเนินการเรียบร้อยแล้ว",tone="success",eyebrow="ACTION COMPLETED",buttonText="ตกลง"}={}){
+  return new Promise(resolve=>{
+    const modal=$("#modalNotice"),icon=$("#noticeIcon"),t=$("#noticeTitle"),m=$("#noticeMessage"),e=$("#noticeEyebrow"),ok=$("#btnNoticeOk");
+    const toneText={success:"✓",danger:"🗑",info:"★"};
+    icon.className=`notice-icon ${tone}`; icon.textContent=toneText[tone]||"✓"; t.textContent=title; m.textContent=message; e.textContent=eyebrow; ok.textContent=buttonText;
+    const cleanup=()=>{ok.onclick=null;modal.querySelectorAll('[data-close-notice]').forEach(el=>el.onclick=null);closeModal(modal);resolve(true);};
+    ok.onclick=cleanup; modal.querySelectorAll('[data-close-notice]').forEach(el=>el.onclick=cleanup); openModal("#modalNotice");
+  });
+}
+function flashProjectorRefresh(){const p=$("#projector");if(!p||p.classList.contains("hidden"))return;p.classList.remove("refresh-flash");void p.offsetWidth;p.classList.add("refresh-flash");}
 function formatDate(v){let d;if(!v)return"—";if(v?.toDate)d=v.toDate();else d=new Date(v);if(Number.isNaN(d.getTime()))return"—";return new Intl.DateTimeFormat("th-TH",{dateStyle:"medium",timeStyle:"short"}).format(d);}
 function selectedSessionId(){return $("#adminSessionFilter")?.value||"";}
 function filteredResponses(){const sid=selectedSessionId();return sid?state.responses.filter(r=>r.sessionId===sid):state.responses;}
 function participantFilteredRows(){
   const q=$("#adminSearch")?.value?.trim().toLowerCase()||"",cf=$("#adminColorFilter")?.value||"";
-  return filteredResponses().filter(r=>{const hay=[r.fullName,r.organization,r.email,r.sessionName].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!cf||r.dominant===cf);});
+  return filteredResponses().filter(r=>{const hay=[r.fullName,r.organization,r.sessionName].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!cf||r.dominant===cf);});
 }
 function isResponseSelected(id){return state.selectedResponseIds.includes(String(id));}
 function setResponseSelected(id,selected){const sid=String(id);const set=new Set(state.selectedResponseIds.map(String));selected?set.add(sid):set.delete(sid);state.selectedResponseIds=[...set];}
@@ -110,28 +120,66 @@ function exportWordPills(words,clsName="story-word"){return (words||[]).map(w=>`
 function createExportHost(innerHtml,width,height){const host=document.createElement("div");host.className="export-clone-host";host.style.width=`${width}px`;host.style.height=`${height}px`;host.innerHTML=innerHtml;document.body.appendChild(host);return host;}
 async function renderStaticRadar(canvas,scores,labelSize=16){
   if(!canvas||!window.Chart||!scores)return null;
-  const chart=new Chart(canvas,{type:"radar",data:radarData(scores,"พลัง"),options:baseChartOptions({animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.12)"},angleLines:{color:"rgba(255,255,255,.12)"},pointLabels:{color:"#dce6f2",font:{family:"Prompt",size:labelSize}}}}})});
+  const chart=new Chart(canvas,{type:"radar",plugins:[CONTINUOUS_CHART_PLUGIN],data:radarData(scores,"พลัง"),options:baseChartOptions({animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.12)"},angleLines:{color:"rgba(255,255,255,.12)"},pointLabels:{color:"#dce6f2",font:{family:"Prompt",size:labelSize}}}}})});
   await sleep(50);return chart;
+}
+async function renderStaticGroupRadar(canvas,scores,labelSize=16){
+  if(!canvas||!window.Chart||!scores)return null;
+  const chart=new Chart(canvas,{type:"radar",plugins:[CONTINUOUS_CHART_PLUGIN],data:{labels:RADAR_LABELS,datasets:groupRadarDatasets(scores)},options:baseChartOptions({animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.12)"},angleLines:{color:"rgba(255,255,255,.12)"},pointLabels:{color:"#dce6f2",font:{family:"Prompt",size:labelSize}}}}})});
+  await sleep(50);return chart;
+}
+async function renderStaticDoughnut(canvas,rows){
+  if(!canvas||!window.Chart)return null; const data=COLORS.map(k=>rows.filter(r=>r.dominant===k).length);
+  const chart=new Chart(canvas,{type:"doughnut",plugins:[CONTINUOUS_CHART_PLUGIN,COLOR_MIX_PLUGIN],data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data,backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#0b182a",borderWidth:4,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#b7c5d7",usePointStyle:true,font:{family:"Prompt"}}},tooltip:doughnutTooltipOptions()},animation:false}});
+  await sleep(50); return chart;
 }
 async function captureElementPng(node,opts){await document.fonts.ready;await sleep(260);return html2canvas(node,{backgroundColor:opts.backgroundColor||"#06111e",scale:2,useCORS:true,logging:false,width:opts.width,height:opts.height,windowWidth:opts.width,windowHeight:opts.height});}
 function downloadCanvasPng(canvas,filename){const a=document.createElement("a");a.download=filename;a.href=canvas.toDataURL("image/png",1);a.click();}
 const RADAR_LABELS=["THINK · คิด","FIGHT · ลุย","FINE · ละเอียด","DO · ทำ"];
 const COLOR_MIX_PLUGIN={
   id:"colorMixCenterText",
-  afterDatasetsDraw(chart,args,pluginOptions){
+  afterDatasetsDraw(chart){
     if(chart.config.type!=="doughnut")return;
     const {ctx}=chart;const meta=chart.getDatasetMeta(0);if(!meta?.data?.length)return;
-    const total=(chart.data.datasets[0].data||[]).reduce((a,b)=>a+Number(b||0),0);
-    const dominantIndex=(chart.data.datasets[0].data||[]).reduce((best,val,idx,arr)=>Number(val)>Number(arr[best]||-1)?idx:best,0);
-    const dominantLabel=chart.data.labels[dominantIndex]||"TOTAL";const dominantValue=Number(chart.data.datasets[0].data[dominantIndex]||0);
-    const pct=total?Math.round(dominantValue/total*100):0;const x=meta.data[0].x,y=meta.data[0].y;
-    ctx.save();ctx.textAlign="center";ctx.fillStyle="#8fa9c6";ctx.font='600 16px Prompt';ctx.fillText("Dominant",x,y-14);ctx.fillStyle="#ffffff";ctx.font='700 30px Kanit';ctx.fillText(`${dominantLabel} ${pct}%`,x,y+16);ctx.restore();
+    const values=chart.data.datasets[0].data||[];const total=values.reduce((a,b)=>a+Number(b||0),0);
+    const active=chart.getActiveElements?.()||[];
+    const index=active.length?active[0].index:values.reduce((best,val,idx,arr)=>Number(val)>Number(arr[best]||-1)?idx:best,0);
+    const label=chart.data.labels[index]||"TOTAL";const value=Number(values[index]||0);const pct=total?Math.round(value/total*100):0;const x=meta.data[0].x,y=meta.data[0].y;
+    ctx.save();ctx.textAlign="center";ctx.fillStyle="#8fa9c6";ctx.font='600 16px Prompt';ctx.fillText(active.length?"Hover":"Dominant",x,y-14);ctx.fillStyle="#ffffff";ctx.font='700 30px Kanit';ctx.fillText(`${label} ${pct}%`,x,y+16);ctx.restore();
   }
 };
+function doughnutTooltipOptions(){return{callbacks:{label(ctx){const values=ctx.dataset.data||[];const total=values.reduce((a,b)=>a+Number(b||0),0);const value=Number(ctx.raw||0);const pct=total?Math.round(value/total*100):0;return `${ctx.label}: ${value} คน (${pct}%)`;}}};}
 function markChartLoading(canvas){const wrap=canvas?.parentElement;if(!wrap)return;wrap.classList.add("chart-loading");clearTimeout(wrap._loadingTimer);wrap._loadingTimer=setTimeout(()=>wrap.classList.remove("chart-loading"),1700);}
 function renderColorMixLegend(rows){
   const el=$("#colorMixLegend");if(!el)return;const total=rows.length||0;
   el.innerHTML=COLORS.map(k=>{const count=rows.filter(r=>r.dominant===k).length;const pct=total?Math.round(count/total*100):0;return `<div class="color-mix-item"><b><i style="background:${META()[k].color}"></i>${META()[k].label}</b><span>${count} คน</span><strong>${pct}%</strong></div>`;}).join("");
+}
+const CONTINUOUS_CHART_PLUGIN={
+  id:"continuousChartMotion",
+  afterDraw(chart){
+    const ctx=chart.ctx; const t=performance.now()/1000;
+    if(chart.config.type==="radar"){
+      const scale=chart.scales?.r; if(!scale) return;
+      const cx=scale.xCenter, cy=scale.yCenter, radius=scale.drawingArea || Math.min(chart.width,chart.height)*0.32;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate((t/4)% (Math.PI*2));
+      const g=ctx.createLinearGradient(-radius,0,radius,0); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(120,170,255,.22)'); g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.strokeStyle=g; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-radius,0); ctx.lineTo(radius,0); ctx.stroke(); ctx.restore();
+      chart.data.datasets.forEach((ds,di)=>{if(di!==0)return;const meta=chart.getDatasetMeta(di); meta?.data?.forEach((pt,idx)=>{const pulse=4+(Math.sin(t*2.2+idx)*1.8); ctx.save(); ctx.fillStyle=(Array.isArray(ds.pointBackgroundColor)?ds.pointBackgroundColor[idx]:ds.pointBackgroundColor)||'#8fb5ff'; ctx.globalAlpha=.11; ctx.beginPath(); ctx.arc(pt.x,pt.y,pulse+4,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=.05; ctx.beginPath(); ctx.arc(pt.x,pt.y,pulse+10,0,Math.PI*2); ctx.fill(); ctx.restore();});});
+      const mainMeta=chart.getDatasetMeta(0); const pts=mainMeta?.data||[];
+      if(pts.length>2){ctx.save();ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.closePath();ctx.setLineDash([14,13]);ctx.lineDashOffset=-(t*38)%54;ctx.lineWidth=3;ctx.strokeStyle='rgba(132,191,255,.78)';ctx.shadowColor='rgba(96,163,255,.9)';ctx.shadowBlur=16;ctx.globalAlpha=.78;ctx.stroke();ctx.restore();}
+    }
+    if(chart.config.type==="doughnut"){
+      const arc=chart.getDatasetMeta(0)?.data?.[0]; if(!arc) return; const {x,y,outerRadius}=arc; const sweep=(t/2.5)%(Math.PI*2);
+      ctx.save(); ctx.strokeStyle='rgba(133,175,255,.28)'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.beginPath(); ctx.arc(x,y,outerRadius+10,sweep,sweep+.55); ctx.stroke(); ctx.restore();
+    }
+  }
+};
+function startChartMotionLoop(){
+  if(state.chartMotionStarted) return; state.chartMotionStarted=true;
+  const step=()=>{Object.values(charts).forEach(chart=>{if(chart?.canvas?.isConnected) try{chart.draw();}catch(e){}}); requestAnimationFrame(step);};
+  requestAnimationFrame(step);
 }
 
 async function initFirebase(){
@@ -157,8 +205,11 @@ function applyBranding(){
   $("#brandTitle").textContent=state.config.gameTitle||"COLOR ME";
   $("#brandTagline").textContent=state.config.gameTagline||"5 WORDS · 4 COLORS";
   $("#heroSubtitle").textContent=state.config.heroSubtitle||DEFAULT_CONFIG.heroSubtitle;
-  $("#privacyMiniText").textContent=`ข้อมูลจะเก็บประมาณ ${state.config.retentionDays||365} วัน เพื่อใช้สรุปกิจกรรม`;
-  $("#privacyNoticeText").textContent=(state.config.privacyNotice||DEFAULT_CONFIG.privacyNotice)+(state.config.privacyEmail?`\n\nติดต่อผู้ดูแลข้อมูล: ${state.config.privacyEmail}`:"");
+  const privacyMini=$("#privacyMiniText"),privacyNotice=$("#privacyNoticeText");
+  if(privacyMini)privacyMini.textContent=`ข้อมูลจะเก็บประมาณ ${state.config.retentionDays||365} วัน เพื่อใช้สรุปกิจกรรม`;
+  if(privacyNotice)privacyNotice.textContent=(state.config.privacyNotice||DEFAULT_CONFIG.privacyNotice)+(state.config.privacyEmail?`
+
+ติดต่อผู้ดูแลข้อมูล: ${state.config.privacyEmail}`:"");
   renderWords();renderMappingEditor();
 }
 async function resolveSession(){
@@ -219,15 +270,13 @@ async function checkDuplicateAndSave(result){
   const payload={
     fullName:state.profile.fullName,
     organization:state.profile.organization||"",
-    email:state.profile.email||"",
     selectedWords:result.selectedWords,
     scores:result.scores,
     dominant:result.dominant,
     secondary:result.secondary,
     sessionId,
     sessionName:state.activeSession?.name||"Open session",
-    consent:true,
-    version:"7.0.0"
+    version:"12.0.0"
   };
 
   if(state.firebaseReady){
@@ -321,6 +370,16 @@ function renderResult(){
 function radarData(scores,label="พลัง"){
   return{labels:RADAR_LABELS,datasets:[{label,data:[scores.think,scores.fight,scores.fine,scores.do],borderWidth:3,pointRadius:5,pointHoverRadius:7,fill:true,backgroundColor:"rgba(116,129,255,.24)",borderColor:"rgba(160,177,255,.98)",pointBackgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],pointBorderColor:"#07111f",pointBorderWidth:2}]};
 }
+function groupRadarDatasets(scores){
+  const values=[scores.think,scores.fight,scores.fine,scores.do];
+  const gradientFill=(ctx)=>{const chart=ctx.chart,area=chart.chartArea;if(!area)return"rgba(116,129,255,.20)";const g=chart.ctx.createLinearGradient(area.left,area.top,area.right,area.bottom);g.addColorStop(0,"rgba(66,108,255,.42)");g.addColorStop(.34,"rgba(255,69,93,.34)");g.addColorStop(.66,"rgba(255,201,56,.30)");g.addColorStop(1,"rgba(55,216,137,.38)");return g;};
+  return [
+    {label:"Group DNA",data:values,borderWidth:3,pointRadius:6,pointHoverRadius:8,fill:true,backgroundColor:gradientFill,borderColor:"rgba(226,235,255,.95)",pointBackgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],pointBorderColor:"#07111f",pointBorderWidth:2},
+    {label:"Energy layer 1",data:values.map(v=>Math.max(0,Math.round(v*.86))),borderWidth:1.4,pointRadius:0,fill:true,backgroundColor:"rgba(91,120,255,.08)",borderColor:"rgba(103,145,255,.28)"},
+    {label:"Energy layer 2",data:values.map(v=>Math.max(0,Math.round(v*.68))),borderWidth:1.2,pointRadius:0,fill:true,backgroundColor:"rgba(255,93,124,.045)",borderColor:"rgba(255,101,128,.20)"},
+    {label:"Energy layer 3",data:values.map(v=>Math.max(0,Math.round(v*.50))),borderWidth:1,pointRadius:0,fill:true,backgroundColor:"rgba(70,224,176,.035)",borderColor:"rgba(70,224,176,.18)"}
+  ];
+}
 function baseChartOptions(extra={}){
   return{responsive:true,maintainAspectRatio:false,interaction:{mode:"nearest",intersect:false},elements:{line:{tension:.28}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.10)"},angleLines:{color:"rgba(255,255,255,.12)"},pointLabels:{color:"#d7e5f4",font:{family:"Prompt",size:12,weight:"600"}}}},plugins:{legend:{display:false},tooltip:{backgroundColor:"rgba(7,17,31,.96)",borderColor:"rgba(132,170,220,.35)",borderWidth:1,titleColor:"#fff",bodyColor:"#dce8f5",padding:10}},animation:{duration:1800,easing:"easeOutExpo"},transitions:{active:{animation:{duration:280}}},...extra};
 }
@@ -328,11 +387,12 @@ function buildAnimatedRadar(canvas,datasets,key,extraOptions={}){
   if(charts[key])charts[key].destroy();
   markChartLoading(canvas);
   const startSets=datasets.map(ds=>({...ds,data:ds.data.map(()=>0)}));
-  charts[key]=new Chart(canvas,{type:"radar",data:{labels:RADAR_LABELS,datasets:startSets},options:baseChartOptions(extraOptions)});
+  charts[key]=new Chart(canvas,{type:"radar",plugins:[CONTINUOUS_CHART_PLUGIN],data:{labels:RADAR_LABELS,datasets:startSets},options:baseChartOptions(extraOptions)});
   requestAnimationFrame(()=>requestAnimationFrame(()=>{charts[key].data.datasets=datasets.map(ds=>({...ds,data:[...ds.data]}));charts[key].update();}));
   return charts[key];
 }
 function drawRadar(id,scores,key,label){const el=document.getElementById(id);if(!el||!window.Chart)return;buildAnimatedRadar(el,[radarData(scores,label).datasets[0]],key);}
+function drawGroupRadar(id,scores,key){const el=document.getElementById(id);if(!el||!window.Chart)return;buildAnimatedRadar(el,groupRadarDatasets(scores),key,{plugins:{legend:{display:false},tooltip:{filter:item=>item.datasetIndex===0}}});}
 
 async function adminLogin(email,password){
   if(!state.firebaseReady)throw new Error("ยังไม่ได้ตั้งค่า Firebase");
@@ -367,19 +427,26 @@ function averageScores(rows){const a={think:0,fight:0,fine:0,do:0};if(!rows.leng
 function renderAdmin(){
   const rows=filteredResponses();$("#statTotal").textContent=rows.length;COLORS.forEach(k=>{$("#stat"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length;});
   $("#adminHello").textContent=`บริหารกิจกรรมและดูสรุปแบบเรียลไทม์ · อัปเดตล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;
-  drawRadar("adminRadar",averageScores(rows),"adminRadar");drawDoughnut(rows);renderColorMixLegend(rows);renderTable();renderTeamDNA();renderProjector();syncParticipantSelectionUI();
+  drawGroupRadar("adminRadar",averageScores(rows),"adminRadar");drawDoughnut(rows);renderColorMixLegend(rows);renderTable();renderTeamDNA();renderProjector();if(!$("#projector").classList.contains("hidden"))flashProjectorRefresh();syncParticipantSelectionUI();
 }
 function drawDoughnut(rows){
   if(charts.adminDoughnut)charts.adminDoughnut.destroy();
   const canvas=$("#adminDoughnut");
   const finalData=COLORS.map(k=>rows.filter(r=>r.dominant===k).length);
   markChartLoading(canvas);
-  charts.adminDoughnut=new Chart(canvas,{type:"doughnut",plugins:[COLOR_MIX_PLUGIN],data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data:[0,0,0,0],backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#0b182a",borderWidth:4,hoverOffset:12}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#b7c5d7",usePointStyle:true,font:{family:"Prompt"}}}},animation:{animateRotate:true,animateScale:true,duration:1700,easing:"easeOutExpo"}}});
+  charts.adminDoughnut=new Chart(canvas,{type:"doughnut",plugins:[CONTINUOUS_CHART_PLUGIN,COLOR_MIX_PLUGIN],data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data:[0,0,0,0],backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#0b182a",borderWidth:4,hoverOffset:12}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#b7c5d7",usePointStyle:true,font:{family:"Prompt"}}},tooltip:doughnutTooltipOptions()},animation:{animateRotate:true,animateScale:true,duration:1700,easing:"easeOutExpo"}}});
   requestAnimationFrame(()=>requestAnimationFrame(()=>{charts.adminDoughnut.data.datasets[0].data=finalData;charts.adminDoughnut.update();}));
 }
+function drawDoughnutCanvas(id,rows,key){
+  if(charts[key])charts[key].destroy(); const canvas=document.getElementById(id); if(!canvas||!window.Chart)return;
+  const finalData=COLORS.map(k=>rows.filter(r=>r.dominant===k).length); markChartLoading(canvas);
+  charts[key]=new Chart(canvas,{type:"doughnut",plugins:[CONTINUOUS_CHART_PLUGIN,COLOR_MIX_PLUGIN],data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data:[0,0,0,0],backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#07111f",borderWidth:4,hoverOffset:14}]},options:{responsive:true,maintainAspectRatio:false,cutout:"66%",plugins:{legend:{display:false},tooltip:doughnutTooltipOptions()},animation:{animateRotate:true,animateScale:true,duration:1700,easing:"easeOutExpo"}}});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{charts[key].data.datasets[0].data=finalData;charts[key].update();}));
+}
+function renderProjectorColorLegend(rows){const el=$("#projectorColorLegend");if(!el)return;const total=rows.length||0;el.innerHTML=COLORS.map(k=>{const count=rows.filter(r=>r.dominant===k).length;const pct=total?Math.round(count/total*100):0;return `<div class="projector-color-item"><b><i style="background:${META()[k].color}"></i>${META()[k].label}</b><strong style="color:${META()[k].color}">${pct}%</strong><span>${count} คน</span></div>`;}).join("");}
 function renderTable(){
   const rows=participantFilteredRows();
-  $("#adminTableBody").innerHTML=rows.length?rows.map(r=>`<tr class="${isResponseSelected(r.id)?"participant-row-selected":""}"><td class="col-check"><input class="response-check" data-response-check="${r.id}" type="checkbox" ${isResponseSelected(r.id)?"checked":""} /></td><td><div class="person-name">${escapeHtml(r.fullName||"—")}</div><div class="person-sub">${escapeHtml(r.email||"")}</div></td><td>${escapeHtml(r.sessionName||"—")}</td><td>${escapeHtml(r.organization||"—")}</td><td>${(r.selectedWords||[]).map(escapeHtml).join(" · ")}</td><td><span class="color-badge cb-${r.dominant}">${META()[r.dominant]?.label||"—"}</span></td><td><div class="score-mini">${COLORS.map(k=>`<i>${META()[k].label[0]} ${r.scores?.[k]??0}%</i>`).join("")}</div></td><td>${formatDate(r.createdAt)}</td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" data-detail="${r.id}">ดูกราฟ</button><button class="btn btn-soft-danger btn-sm" data-delete-response="${r.id}">ลบ</button></div></td></tr>`).join(""):`<tr><td colspan="9" style="text-align:center;color:#7d8da2;padding:36px">ไม่พบข้อมูล</td></tr>`;
+  $("#adminTableBody").innerHTML=rows.length?rows.map(r=>`<tr class="${isResponseSelected(r.id)?"participant-row-selected":""}"><td class="col-check"><input class="response-check" data-response-check="${r.id}" type="checkbox" ${isResponseSelected(r.id)?"checked":""} /></td><td><div class="person-name">${escapeHtml(r.fullName||"—")}</div></td><td>${escapeHtml(r.sessionName||"—")}</td><td>${escapeHtml(r.organization||"—")}</td><td>${(r.selectedWords||[]).map(escapeHtml).join(" · ")}</td><td><span class="color-badge cb-${r.dominant}">${META()[r.dominant]?.label||"—"}</span></td><td><div class="score-mini">${COLORS.map(k=>`<i>${META()[k].label[0]} ${r.scores?.[k]??0}%</i>`).join("")}</div></td><td>${formatDate(r.createdAt)}</td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" data-detail="${r.id}">ดูกราฟ</button><button class="btn btn-soft-danger btn-sm" data-delete-response="${r.id}">ลบ</button></div></td></tr>`).join(""):`<tr><td colspan="9" style="text-align:center;color:#7d8da2;padding:36px">ไม่พบข้อมูล</td></tr>`;
   $$('[data-detail]').forEach(b=>b.addEventListener('click',()=>showDetail(b.dataset.detail)));
   $$('[data-delete-response]').forEach(b=>b.addEventListener('click',()=>deleteResponse(b.dataset.deleteResponse)));
   $$('[data-response-check]').forEach(ch=>ch.addEventListener('change',()=>{setResponseSelected(ch.dataset.responseCheck,ch.checked);syncParticipantSelectionUI();renderTable();}));
@@ -431,14 +498,10 @@ function showQr(sessionId){
   $("#qrBox").innerHTML="";new QRCode($("#qrBox"),{text:u.toString(),width:220,height:220,colorDark:"#07111f",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.H});$("#qrUrl").textContent=u.toString();$("#qrSessionTitle").textContent=s.name;openModal("#modalQr");
 }
 
-function csvData(rows){return [["ชื่อ-นามสกุล","Session","หน่วยงาน/กลุ่ม","อีเมล","คำที่เลือก","สีเด่น","สีรอง","THINK","FIGHT","FINE","DO","เวลา"],...rows.map(r=>[r.fullName||"",r.sessionName||"",r.organization||"",r.email||"",(r.selectedWords||[]).join("|"),r.dominant||"",r.secondary||"",r.scores?.think??0,r.scores?.fight??0,r.scores?.fine??0,r.scores?.do??0,formatDate(r.createdAt)])];}
+function csvData(rows){return [["ชื่อ-นามสกุล","Session","หน่วยงาน/กลุ่ม","คำที่เลือก","สีเด่น","สีรอง","THINK","FIGHT","FINE","DO","เวลา"],...rows.map(r=>[r.fullName||"",r.sessionName||"",r.organization||"",(r.selectedWords||[]).join("|"),r.dominant||"",r.secondary||"",r.scores?.think??0,r.scores?.fight??0,r.scores?.fine??0,r.scores?.do??0,formatDate(r.createdAt)])];}
 function exportCsv(){const lines=csvData(filteredResponses()).map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const blob=new Blob(["\ufeff"+lines],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`talent-color-${Date.now()}.csv`;a.click();URL.revokeObjectURL(a.href);}
 function exportXlsx(){const ws=XLSX.utils.aoa_to_sheet(csvData(filteredResponses())),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Results");XLSX.writeFile(wb,`talent-color-${Date.now()}.xlsx`);}
-async function exportPdf(){
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});doc.setFontSize(16);doc.text("Talent Color Activity Summary",14,14);doc.setFontSize(10);
-  const rows=filteredResponses();doc.text(`Participants: ${rows.length}`,14,22);const counts=COLORS.map(k=>`${META()[k].label}: ${rows.filter(r=>r.dominant===k).length}`).join("   ");doc.text(counts,14,29);
-  const canvas=$("#adminRadar");const img=canvas.toDataURL("image/png",1);doc.addImage(img,"PNG",14,36,90,78);doc.text("See exported CSV/XLSX for participant-level detail.",115,45);doc.save(`talent-color-summary-${Date.now()}.pdf`);
-}
+async function exportPdf(){ await exportDashboardPdf(); }
 
 async function removeResponsesByIds(ids){
   const unique=[...new Set((ids||[]).map(String))];
@@ -460,7 +523,7 @@ async function deleteResponse(id){
   if(!await openConfirmModal({title:"ลบข้อมูลผู้ใช้",message:`ต้องการลบข้อมูลของ ${row.fullName||"ผู้ใช้งาน"} ใช่หรือไม่?`,confirmText:"ลบข้อมูล",danger:true}))return;
   const removed=await removeResponsesByIds([id]);
   renderAdmin();
-  toast(`ลบข้อมูลผู้ใช้แล้ว ${removed} รายการ`);
+  toast(`ลบข้อมูลผู้ใช้แล้ว ${removed} รายการ`);openNoticeModal({title:'ลบข้อมูลสำเร็จ',message:`ลบข้อมูลผู้ใช้แล้ว ${removed} รายการ`,tone:'danger',eyebrow:'DELETE COMPLETED'});
 }
 async function deleteSelectedResponses(){
   const ids=[...state.selectedResponseIds];
@@ -468,7 +531,7 @@ async function deleteSelectedResponses(){
   if(!await openConfirmModal({title:"ลบหลายรายการ",message:`ต้องการลบข้อมูลผู้เข้าร่วมที่เลือก ${ids.length} รายการ ใช่หรือไม่?`,confirmText:"ลบที่เลือก",danger:true}))return;
   const removed=await removeResponsesByIds(ids);
   renderAdmin();
-  toast(`ลบข้อมูลที่เลือกแล้ว ${removed} รายการ`);
+  toast(`ลบข้อมูลที่เลือกแล้ว ${removed} รายการ`);openNoticeModal({title:'ลบหลายรายการสำเร็จ',message:`ลบข้อมูลที่เลือกแล้ว ${removed} รายการ`,tone:'danger',eyebrow:'DELETE COMPLETED'});
 }
 async function deleteSessionResponses(sessionId){
   if(!sessionId){toast("กรุณาเลือก Session ก่อน");return;}
@@ -478,7 +541,7 @@ async function deleteSessionResponses(sessionId){
   if(!await openConfirmModal({title:"ลบผลลัพธ์ทั้ง Session",message:`ต้องการลบข้อมูลผู้เข้าร่วมทั้งหมด ${rows.length} รายการ ของ ${session?.name||'Session นี้'} ใช่หรือไม่?`,confirmText:"ลบผลลัพธ์",danger:true}))return;
   const removed=await removeResponsesByIds(rows.map(r=>r.id));
   renderAdmin();
-  toast(`ลบข้อมูล ${removed} รายการแล้ว`);
+  toast(`ลบข้อมูล ${removed} รายการแล้ว`);openNoticeModal({title:'ลบข้อมูล Session สำเร็จ',message:`ลบข้อมูล ${removed} รายการแล้ว`,tone:'danger',eyebrow:'SESSION CLEANED'});
 }
 async function deleteSessionAndData(sessionId){
   if(!sessionId){toast("กรุณาเลือก Session ก่อน");return;}
@@ -500,7 +563,7 @@ async function deleteSessionAndData(sessionId){
   fillSessionSelectors();
   renderSessions();
   renderAdmin();
-  toast(`ลบ Session ${session.name} เรียบร้อยแล้ว`);
+  toast(`ลบ Session ${session.name} เรียบร้อยแล้ว`);openNoticeModal({title:'ลบ Session สำเร็จ',message:`ลบ Session ${session.name} และข้อมูลที่เกี่ยวข้องเรียบร้อยแล้ว`,tone:'danger',eyebrow:'SESSION DELETED'});
 }
 
 async function loadAdminConfig(){
@@ -517,24 +580,36 @@ async function saveConfig(partial){
   state.config={...state.config,...partial};
   if(state.firebaseReady){await fb.fsFns.setDoc(fb.fsFns.doc(fb.db,"publicConfig","main"),state.config,{merge:true});}
   else localStorage.setItem("talentColorConfig",JSON.stringify(state.config));
-  applyBranding();toast("บันทึกการตั้งค่าแล้ว");
+  applyBranding();toast("บันทึกการตั้งค่าแล้ว");openNoticeModal({title:'บันทึกการตั้งค่าแล้ว',message:'อัปเดตหน้าจอเกมเรียบร้อยแล้ว',tone:'success',eyebrow:'SETTINGS UPDATED'});
 }
 async function deleteExpired(){
   const days=Number(state.config.retentionDays||365),cutoff=Date.now()-days*86400000;
   if(!await openConfirmModal({title:"ลบข้อมูลเกินกำหนด",message:`ต้องการลบข้อมูลที่เก่ากว่า ${days} วัน ใช่หรือไม่?`,confirmText:"ลบข้อมูลเก่า",danger:true}))return;
-  if(state.demoMode){let arr=JSON.parse(localStorage.getItem("talentColorDemoResponses")||"[]");arr=arr.filter(r=>new Date(r.createdAt).getTime()>=cutoff);localStorage.setItem("talentColorDemoResponses",JSON.stringify(arr));state.responses=arr;setLiveUpdatedNow();renderAdmin();toast("ลบข้อมูล Demo ที่เกินกำหนดแล้ว");return;}
+  if(state.demoMode){let arr=JSON.parse(localStorage.getItem("talentColorDemoResponses")||"[]");arr=arr.filter(r=>new Date(r.createdAt).getTime()>=cutoff);localStorage.setItem("talentColorDemoResponses",JSON.stringify(arr));state.responses=arr;setLiveUpdatedNow();renderAdmin();toast("ลบข้อมูล Demo ที่เกินกำหนดแล้ว");openNoticeModal({title:'ลบข้อมูลเก่าพ้นกำหนดแล้ว',message:'จัดการข้อมูลในโหมด Demo เรียบร้อยแล้ว',tone:'danger',eyebrow:'RETENTION APPLIED'});return;}
   const old=state.responses.filter(r=>{const d=r.createdAt?.toDate?r.createdAt.toDate():new Date(r.createdAt);return d.getTime()<cutoff;});
-  for(const r of old)await fb.fsFns.deleteDoc(fb.fsFns.doc(fb.db,"responses",r.id));toast(`ลบ ${old.length} รายการแล้ว`);
+  for(const r of old)await fb.fsFns.deleteDoc(fb.fsFns.doc(fb.db,"responses",r.id));toast(`ลบ ${old.length} รายการแล้ว`);openNoticeModal({title:'ลบข้อมูลเก่าพ้นกำหนดแล้ว',message:`ลบ ${old.length} รายการแล้ว`,tone:'danger',eyebrow:'RETENTION APPLIED'});
 }
 
-function openProjector(){$("#projector").classList.remove("hidden");document.body.style.overflow="hidden";renderProjector();}
-function closeProjector(){$("#projector").classList.add("hidden");document.body.style.overflow="";}
+function showProjectorSlide(index,animate=true){
+  const slides=$$("[data-projector-slide]");if(!slides.length)return;state.projectorSlide=((index%slides.length)+slides.length)%slides.length;
+  slides.forEach((slide,i)=>{slide.classList.toggle("active",i===state.projectorSlide);slide.classList.toggle("exit-left",animate&&i<state.projectorSlide);});
+  $$('[data-projector-dot]').forEach((dot,i)=>dot.classList.toggle('active',i===state.projectorSlide));
+}
+function startProjectorSlideshow(){clearInterval(state.projectorSlideTimer);state.projectorSlideTimer=setInterval(()=>showProjectorSlide(state.projectorSlide+1),state.projectorMode==="tv"?6000:7500);}
+async function openProjector(mode="projector"){
+  state.projectorMode=mode;state.projectorSlide=0;const p=$("#projector");p.classList.remove("hidden");p.classList.toggle("tv-mode",mode==="tv");document.body.style.overflow="hidden";$("#projectorModeLabel").innerHTML=mode==="tv"?'<i></i> TV DISPLAY · AUTO':'<i></i> AUTO SUMMARY';showProjectorSlide(0,false);renderProjector();flashProjectorRefresh();clearInterval(state.projectorTimer);state.projectorTimer=setInterval(()=>{renderProjector();flashProjectorRefresh();},5000);startProjectorSlideshow();
+  if(mode==="tv"&&document.documentElement.requestFullscreen){try{await document.documentElement.requestFullscreen();}catch(e){}}
+}
+async function closeProjector(){const p=$("#projector");p.classList.add("hidden");p.classList.remove("tv-mode");document.body.style.overflow="";clearInterval(state.projectorTimer);clearInterval(state.projectorSlideTimer);state.projectorTimer=null;state.projectorSlideTimer=null;if(document.fullscreenElement){try{await document.exitFullscreen();}catch(e){}}}
 function renderProjector(){
   if($("#projector").classList.contains("hidden"))return;const rows=filteredResponses(),avg=averageScores(rows),sid=selectedSessionId(),s=state.sessions.find(x=>x.id===sid);
-  $("#projectorSessionName").textContent=s?.name||"ผลรวมทุก Session";$("#projTotal").textContent=rows.length;COLORS.forEach(k=>$("#proj"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length);
-  drawRadar("projectorRadar",avg,"projector");const sorted=COLORS.slice().sort((a,b)=>avg[b]-avg[a]),hi=sorted[0],lo=sorted.at(-1);
-  $("#projectorInsight").innerHTML=`<div class="dna-note"><b>สีเด่นของกลุ่ม</b><p><span style="color:${META()[hi].color}">${META()[hi].label}</span> เฉลี่ย ${avg[hi]}%</p></div><div class="dna-note"><b>สีที่น้อยที่สุด</b><p><span style="color:${META()[lo].color}">${META()[lo].label}</span> เฉลี่ย ${avg[lo]}%</p></div><div class="dna-note"><b>Team insight</b><p>${teamAdvice(avg)}</p></div>`;
+  $("#projectorSessionName").textContent=s?.name||"ผลรวมทุก Session";$("#projectorUpdatedAt").textContent=`อัปเดตอัตโนมัติทุก 5 วินาที · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;$("#projTotal").textContent=rows.length;COLORS.forEach(k=>$("#proj"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length);
+  drawGroupRadar("projectorRadar",avg,"projector");drawDoughnutCanvas("projectorDoughnut",rows,"projectorDoughnut");drawGroupRadar("projectorTeamRadar",avg,"projectorTeam");renderProjectorColorLegend(rows);
+  const sorted=COLORS.slice().sort((a,b)=>avg[b]-avg[a]),hi=sorted[0],lo=sorted.at(-1);
+  $("#projectorInsight").innerHTML=`<div class="dna-note"><b>พลังเด่นของกลุ่ม</b><p><span style="color:${META()[hi].color}">${META()[hi].label}</span> เฉลี่ย ${avg[hi]}%</p></div><div class="dna-note"><b>พลังที่น้อยที่สุด</b><p><span style="color:${META()[lo].color}">${META()[lo].label}</span> เฉลี่ย ${avg[lo]}%</p></div><div class="dna-note"><b>Team insight</b><p>${teamAdvice(avg)}</p></div>`;
+  $("#projectorTeamInsight").innerHTML=`<div class="dna-note"><b>DNA ของทีม</b><p>${teamAdvice(avg)}</p></div><div class="dna-note"><b>พลังที่ควรเติม</b><p>เพิ่มบทบาทแบบ <span style="color:${META()[lo].color}">${META()[lo].label} · ${META()[lo].thai}</span> เพื่อช่วยสร้างสมดุลในการทำงานร่วมกัน</p></div><div class="dna-note"><b>จังหวะการสื่อสาร</b><p>ทีมมีพลัง ${META()[hi].label} เด่น ควรสื่อสารโดยรักษาจุดแข็งนี้ และเว้นพื้นที่ให้มุมมองของอีก 3 สีมีส่วนร่วม</p></div>`;
 }
+
 
 function landscapeExportMarkup(){
   const data=resultDataForExport();if(!data)return"";const primary=data.primary,secondary=data.secondary,r=data.result;
@@ -549,13 +624,13 @@ async function generateLandscapeCardCanvas(){
 async function saveResultCard(){
   if(!state.result)return toast("ยังไม่มีผลลัพธ์ให้สร้างการ์ด");
   toast("กำลังสร้าง Result Card แนวนอน…");
-  try{const canvas=await generateLandscapeCardCanvas();const safeName=(state.profile.fullName||"color-me").replace(/[\/:*?"<>|]+/g,"-");downloadCanvasPng(canvas,`COLOR-ME-LANDSCAPE-${safeName}-${Date.now()}.png`);toast("สร้าง Result Card แล้ว");}
+  try{const canvas=await generateLandscapeCardCanvas();const safeName=(state.profile.fullName||"color-me").replace(/[\/:*?"<>|]+/g,"-");downloadCanvasPng(canvas,`COLOR-ME-LANDSCAPE-${safeName}-${Date.now()}.png`);toast("สร้าง Result Card แล้ว");openNoticeModal({title:'สร้างการ์ดแนวนอนแล้ว',message:'บันทึกการ์ดผลลัพธ์แนวนอนเรียบร้อยแล้ว',tone:'success',eyebrow:'CARD EXPORTED'});}
   catch(e){console.error(e);toast("สร้าง Result Card ไม่สำเร็จ");}
 }
 async function saveResultPdfCard(){
   if(!state.result)return toast("ยังไม่มีผลลัพธ์ให้ส่งออก PDF");
   toast("กำลังสร้างการ์ด PDF…");
-  try{const canvas=await generateLandscapeCardCanvas();const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'landscape',unit:'px',format:[1920,1080]});pdf.addImage(canvas.toDataURL('image/png',1),'PNG',0,0,1920,1080);const safeName=(state.profile.fullName||"color-me").replace(/[\/:*?"<>|]+/g,"-");pdf.save(`COLOR-ME-CARD-${safeName}-${Date.now()}.pdf`);toast("Export PDF สำเร็จแล้ว");}
+  try{const canvas=await generateLandscapeCardCanvas();const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'landscape',unit:'px',format:[1920,1080]});pdf.addImage(canvas.toDataURL('image/png',1),'PNG',0,0,1920,1080);const safeName=(state.profile.fullName||"color-me").replace(/[\/:*?"<>|]+/g,"-");pdf.save(`COLOR-ME-CARD-${safeName}-${Date.now()}.pdf`);toast("Export PDF สำเร็จแล้ว");openNoticeModal({title:'Export การ์ด PDF สำเร็จ',message:'สร้างไฟล์ PDF ของการ์ดผลลัพธ์เรียบร้อยแล้ว',tone:'success',eyebrow:'CARD EXPORTED'});}
   catch(e){console.error(e);toast("Export PDF ไม่สำเร็จ");}
 }
 async function saveStoryCard(){
@@ -569,17 +644,37 @@ async function saveStoryCard(){
     const canvas=await captureElementPng(host.firstElementChild,{backgroundColor:'#06111e',width:1080,height:1920});
     const safeName=data.fullName.replace(/[\/:*?"<>|]+/g,'-');
     downloadCanvasPng(canvas,`COLOR-ME-STORY-${safeName}-${Date.now()}.png`);
-    toast("สร้างการ์ดมือถือ 9:16 แล้ว");
+    toast("สร้างการ์ดมือถือ 9:16 แล้ว");openNoticeModal({title:'สร้างการ์ดมือถือสำเร็จ',message:'สร้างการ์ดแนวตั้ง 9:16 สำหรับแชร์ลงมือถือเรียบร้อยแล้ว',tone:'success',eyebrow:'CARD EXPORTED'});
   }catch(e){console.error(e);toast("สร้างการ์ดมือถือไม่สำเร็จ");}
   finally{chart?.destroy?.();host?.remove?.();}
+}
+
+function dashboardExportMarkup(rows){
+  const avg=averageScores(rows); const total=rows.length; const sessionName=selectedSessionId()? (state.sessions.find(s=>s.id===selectedSessionId())?.name||"Session") : "ทุก Session";
+  return `<div class="dashboard-export-card"><div class="dashboard-export-head"><div><span class="eyebrow">LIVE ACTIVITY OVERVIEW</span><h1>Talent Color Dashboard</h1><p>สรุปผลกิจกรรมแบบเรียลไทม์ · ขอบเขตข้อมูล: ${escapeHtml(sessionName)}</p></div><div class="export-stamp"><span class="live-chip"><i></i> LIVE DASHBOARD</span><div class="stamp-text">สร้างเมื่อ ${escapeHtml(formatDate(new Date()))}<br/>อัปเดตล่าสุด ${escapeHtml(formatTimeOnly(state.liveUpdatedAt||new Date()))}</div></div></div><div class="dashboard-stat-grid"><article class="stat-card"><span>ผู้ทำกิจกรรม</span><strong>${total}</strong><small>รายการทั้งหมด</small></article>${COLORS.map(k=>`<article class="stat-card stat-${k==='think'?'blue':k==='fight'?'red':k==='fine'?'yellow':'green'}"><span>${META()[k].label}</span><strong>${rows.filter(r=>r.dominant===k).length}</strong><small>${META()[k].thai}</small></article>`).join('')}</div><div><div class="dashboard-export-grid"><article class="result-panel"><div class="card-head compact-head"><div><span class="eyebrow">GROUP DNA</span><h3>กราฟเฉลี่ยของกลุ่ม</h3></div><span class="live-chip"><i></i> เคลื่อนไหวต่อเนื่อง</span></div><div class="chart-wrap admin-radar"><canvas id="dashboardExportRadar"></canvas></div></article><article class="result-panel"><div class="card-head compact-head"><div><span class="eyebrow">COLOR MIX</span><h3>สัดส่วนสีเด่น</h3></div><span class="live-chip"><i></i> อัปเดตสด</span></div><div class="chart-wrap admin-radar"><canvas id="dashboardExportDoughnut"></canvas></div><div class="color-mix-legend">${COLORS.map(k=>{const count=rows.filter(r=>r.dominant===k).length;const pct=total?Math.round(count/total*100):0;return `<div class="color-mix-item"><b><i style="background:${META()[k].color}"></i>${META()[k].label}</b><span>${count} คน</span><strong>${pct}%</strong></div>`;}).join('')}</div><div class="dashboard-footer-note"><span>ค่าเฉลี่ยรวม: THINK ${avg.think}% · FIGHT ${avg.fight}% · FINE ${avg.fine}% · DO ${avg.do}%</span><div><b>COLOR ME</b><br/>5 WORDS · 4 COLORS</div></div></article></div></div></div>`;
+}
+async function generateDashboardCanvas(){
+  const rows=filteredResponses(); const host=createExportHost(dashboardExportMarkup(rows),1920,1080); let radar=null,doughnut=null;
+  try{radar=await renderStaticGroupRadar(host.querySelector('#dashboardExportRadar'),averageScores(rows),16); doughnut=await renderStaticDoughnut(host.querySelector('#dashboardExportDoughnut'),rows); return await captureElementPng(host.firstElementChild,{backgroundColor:'#06111e',width:1920,height:1080});}
+  finally{radar?.destroy?.(); doughnut?.destroy?.(); host?.remove?.();}
+}
+async function exportDashboardPng(){
+  toast('กำลังสร้าง Dashboard PNG…');
+  try{const canvas=await generateDashboardCanvas(); downloadCanvasPng(canvas,`COLOR-ME-DASHBOARD-${Date.now()}.png`); toast('Export Dashboard PNG แล้ว'); openNoticeModal({title:'Export PNG สำเร็จ',message:'สร้างภาพสรุป Dashboard เรียบร้อยแล้ว',tone:'success',eyebrow:'DASHBOARD EXPORTED'});}
+  catch(e){console.error(e); toast('Export Dashboard PNG ไม่สำเร็จ');}
+}
+async function exportDashboardPdf(){
+  toast('กำลังสร้าง Dashboard PDF…');
+  try{const canvas=await generateDashboardCanvas(); const {jsPDF}=window.jspdf; const pdf=new jsPDF({orientation:'landscape',unit:'px',format:[1920,1080]}); pdf.addImage(canvas.toDataURL('image/png',1),'PNG',0,0,1920,1080); pdf.save(`COLOR-ME-DASHBOARD-${Date.now()}.pdf`); toast('Export Dashboard PDF แล้ว'); openNoticeModal({title:'Export PDF สำเร็จ',message:'สร้างไฟล์ PDF ของ Dashboard เรียบร้อยแล้ว',tone:'success',eyebrow:'DASHBOARD EXPORTED'});}
+  catch(e){console.error(e); toast('Export Dashboard PDF ไม่สำเร็จ');}
 }
 
 function switchTab(name){$$(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));$$(".admin-tab-pane").forEach(p=>p.classList.toggle("active",p.id===`tab-${name}`));if(name==="teamdna")renderTeamDNA();}
 function wireEvents(){
   $("#btnStart").addEventListener("click",()=>{if(state.activeSession?.isOpen===false)return toast("Session นี้ปิดรับคำตอบแล้ว");showScreen("#screenProfile");});
-  $("#btnHow").addEventListener("click",()=>openModal("#modalHow"));$("#btnPrivacy").addEventListener("click",()=>openModal("#modalPrivacy"));$("#btnAdmin").addEventListener("click",()=>showScreen("#screenAdminLogin"));
+  $("#btnHow").addEventListener("click",()=>openModal("#modalHow"));if($("#btnPrivacy"))$("#btnPrivacy").addEventListener("click",()=>openModal("#modalPrivacy"));$("#btnAdmin").addEventListener("click",()=>showScreen("#screenAdminLogin"));
   $$("[data-go-home]").forEach(b=>b.addEventListener("click",()=>showScreen("#screenHome")));$$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));$$(".modal-x").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));
-  $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim(),email:$("#email").value.trim()};renderWords();showScreen("#screenWords");});
+  $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim()};renderWords();showScreen("#screenWords");});
   $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>finishReveal(),3500);setTimeout(()=>{renderResult();showScreen("#screenResult");$("#btnAnalyze").disabled=false;},3900);});
   $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});$("#btnSaveImage").addEventListener("click",saveResultCard);$("#btnSaveStory").addEventListener("click",saveStoryCard);$("#btnSavePdfCard").addEventListener("click",saveResultPdfCard);
   $("#btnBackToProfile")?.addEventListener("click",()=>showScreen("#screenProfile"));$("#btnBackToProfileBottom")?.addEventListener("click",()=>showScreen("#screenProfile"));
@@ -588,12 +683,12 @@ function wireEvents(){
   $("#btnDemoDashboard").addEventListener("click",loadDemoAdmin);$("#btnAdminLogout").addEventListener("click",async()=>{state.unsubscribeResponses?.();state.unsubscribeSessions?.();if(state.firebaseReady&&fb.auth.currentUser)await fb.authFns.signOut(fb.auth);state.currentAdmin=null;showScreen("#screenHome");});
   $$(".admin-tab").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
   $("#adminSessionFilter").addEventListener("change",()=>{clearResponseSelection();renderAdmin();});$("#adminSearch").addEventListener("input",()=>{clearResponseSelection();renderTable();});$("#adminColorFilter").addEventListener("change",()=>{clearResponseSelection();renderTable();});$("#selectAllResponses").addEventListener("change",e=>toggleAllFilteredResponses(e.target.checked));$("#selectAllResponsesHead").addEventListener("change",e=>toggleAllFilteredResponses(e.target.checked));$("#btnDeleteSelected").addEventListener("click",deleteSelectedResponses);$("#btnSelectAllSystem").addEventListener("click",selectAllResponsesSystem);$("#btnSelectAllSession").addEventListener("click",selectAllResponsesInSession);$("#btnClearSelected").addEventListener("click",clearSelectedResponses);
-  $("#btnQr").addEventListener("click",()=>showQr(selectedSessionId()));$("#btnExportCsv").addEventListener("click",exportCsv);$("#btnExportXlsx").addEventListener("click",exportXlsx);$("#btnExportPdf").addEventListener("click",exportPdf);
-  $("#btnNewSession").addEventListener("click",()=>openSessionModal());$("#sessionForm").addEventListener("submit",async e=>{e.preventDefault();await saveSession();closeModal($("#modalSession"));toast("บันทึก Session แล้ว");});
+  $("#btnQr").addEventListener("click",()=>showQr(selectedSessionId()));$("#btnExportCsv").addEventListener("click",exportCsv);$("#btnExportXlsx").addEventListener("click",exportXlsx);$("#btnExportPdf").addEventListener("click",exportPdf);$("#btnExportDashboardPng").addEventListener("click",exportDashboardPng);$("#btnExportDashboardPdf").addEventListener("click",exportDashboardPdf);
+  $("#btnNewSession").addEventListener("click",()=>openSessionModal());$("#sessionForm").addEventListener("submit",async e=>{e.preventDefault();await saveSession();closeModal($("#modalSession"));toast("บันทึก Session แล้ว");openNoticeModal({title:'บันทึก Session สำเร็จ',message:'สร้างหรือแก้ไข Session เรียบร้อยแล้ว',tone:'success',eyebrow:'SESSION SAVED'});});
   $("#dnaSessionA").addEventListener("change",renderTeamDNA);$("#dnaSessionB").addEventListener("change",renderTeamDNA);$("#btnDeleteDnaA").addEventListener("click",()=>deleteSessionResponses($("#dnaSessionA").value));$("#btnDeleteDnaB").addEventListener("click",()=>deleteSessionResponses($("#dnaSessionB").value));
   $("#gameSettingsForm").addEventListener("submit",async e=>{e.preventDefault();const words=WORDS().map(w=>({...w,primary:$(`[data-map-primary="${w.id}"]`).value,secondary:$(`[data-map-secondary="${w.id}"]`).value}));await saveConfig({gameTitle:$("#setGameTitle").value.trim(),gameTagline:$("#setGameTagline").value.trim(),heroSubtitle:$("#setHeroSubtitle").value.trim(),logoUrl:$("#setLogoUrl").value.trim(),words});});
   $("#privacySettingsForm").addEventListener("submit",async e=>{e.preventDefault();await saveConfig({privacyNotice:$("#setPrivacyNotice").value.trim(),retentionDays:Number($("#setRetentionDays").value||365),privacyEmail:$("#setPrivacyEmail").value.trim()});});
-  $("#btnDeleteExpired").addEventListener("click",deleteExpired);$("#btnProjector").addEventListener("click",openProjector);$("#btnCloseProjector").addEventListener("click",closeProjector);
+  $("#btnDeleteExpired").addEventListener("click",deleteExpired);$("#btnProjector").addEventListener("click",()=>openProjector("projector"));$("#btnTvDisplay").addEventListener("click",()=>openProjector("tv"));$("#btnCloseProjector").addEventListener("click",closeProjector);$$('[data-projector-dot]').forEach(dot=>dot.addEventListener('click',()=>{showProjectorSlide(Number(dot.dataset.projectorDot));startProjectorSlideshow();}));
 }
 
 function setupPremiumMotion(){

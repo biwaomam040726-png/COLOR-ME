@@ -30,7 +30,6 @@ service cloud.firestore {
     match /responses/{responseId} {
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.consent == true
         && request.resource.data.fullName is string
         && request.resource.data.fullName.size() > 0
         && request.resource.data.sessionId is string

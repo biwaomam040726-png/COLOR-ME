@@ -83,24 +83,11 @@
     <section id="screenProfile" class="screen">
       <div class="panel form-panel">
         <div class="step-head">
-          <div><span class="eyebrow">STEP 1 OF 3</span><h2>ก่อนเริ่ม ขอรู้จักคุณนิดหนึ่ง</h2><p>ข้อมูลนี้ใช้สำหรับแสดงผลรายบุคคลและสรุปภาพรวมให้ผู้ดูแลกิจกรรม</p></div><span class="step-num">01</span>
+          <div><span class="eyebrow">STEP 1 OF 3</span><h2>ก่อนเริ่ม ขอรู้จักคุณนิดหนึ่ง</h2><p>กรอกชื่อและกลุ่มเพื่อแสดงผลลัพธ์ของคุณในกิจกรรมนี้</p></div><span class="step-num">01</span>
         </div>
-        <form id="profileForm" class="profile-form">
+        <form id="profileForm" class="profile-form compact-profile-form">
           <label><span>ชื่อ–นามสกุล <em>*</em></span><input id="fullName" autocomplete="name" maxlength="100" required placeholder="กรอกชื่อ–นามสกุล" /></label>
-          <div class="field-grid">
-            <label><span>หน่วยงาน / ห้อง / กลุ่ม</span><input id="organization" maxlength="100" placeholder="เช่น สตท.1, ม.1/1, กลุ่ม A" /></label>
-            <label><span>อีเมล <small>(ไม่บังคับ)</small></span><input id="email" type="email" autocomplete="email" maxlength="120" placeholder="name@example.com" /></label>
-          </div>
-
-          <div class="privacy-mini">
-            <div>
-              <b>การเก็บข้อมูล</b>
-              <p id="privacyMiniText">จัดเก็บชื่อ ข้อมูลกลุ่ม คำที่เลือก และผล 4 สี เพื่อสรุปกิจกรรม</p>
-            </div>
-            <button id="btnPrivacy" class="text-btn" type="button">อ่าน Privacy Notice</button>
-          </div>
-
-          <label class="consent"><input id="consent" type="checkbox" required /><span>ยินยอมให้จัดเก็บข้อมูลและผลการทำกิจกรรมตาม Privacy Notice <em>*</em></span></label>
+          <label><span>หน่วยงาน / ห้อง / กลุ่ม</span><input id="organization" maxlength="100" placeholder="เช่น สตท.1, ม.1/1, กลุ่ม A" /></label>
           <div class="form-actions"><button class="btn btn-ghost" data-go-home type="button">← กลับ</button><button class="btn btn-primary" type="submit">ไปเลือก 5 คำ →</button></div>
         </form>
       </div>
@@ -238,6 +225,7 @@
         <div><span class="eyebrow">LIVE ACTIVITY OVERVIEW</span><h2>Talent Color Admin</h2><p id="adminHello">บริหารกิจกรรมและดูสรุปแบบเรียลไทม์</p></div>
         <div class="admin-actions">
           <button id="btnProjector" class="btn btn-primary btn-sm" type="button">Projector Mode</button>
+          <button id="btnTvDisplay" class="btn btn-ghost btn-sm" type="button">TV Display</button>
           <button id="btnAdminLogout" class="btn btn-danger btn-sm" type="button">ออกจากระบบ</button>
         </div>
       </div>
@@ -258,6 +246,8 @@
           <button id="btnExportCsv" class="btn btn-ghost btn-sm" type="button">Export CSV</button>
           <button id="btnExportXlsx" class="btn btn-ghost btn-sm" type="button">Export Excel</button>
           <button id="btnExportPdf" class="btn btn-ghost btn-sm" type="button">Export PDF</button>
+          <button id="btnExportDashboardPng" class="btn btn-ghost btn-sm" type="button">Dashboard PNG</button>
+          <button id="btnExportDashboardPdf" class="btn btn-ghost btn-sm" type="button">Dashboard PDF</button>
         </div>
 
         <div class="stat-grid">
@@ -301,7 +291,7 @@
         <article class="panel admin-table-card">
           <div class="table-tools">
             <div><span class="eyebrow">PARTICIPANTS</span><h3>ผลรายบุคคล</h3></div>
-            <div class="filters"><input id="adminSearch" placeholder="ค้นหาชื่อ / หน่วยงาน / อีเมล" /><select id="adminColorFilter"><option value="">ทุกสี</option><option value="think">THINK · น้ำเงิน</option><option value="fight">FIGHT · แดง</option><option value="fine">FINE · เหลือง</option><option value="do">DO · เขียว</option></select></div>
+            <div class="filters"><input id="adminSearch" placeholder="ค้นหาชื่อ / หน่วยงาน" /><select id="adminColorFilter"><option value="">ทุกสี</option><option value="think">THINK · น้ำเงิน</option><option value="fight">FIGHT · แดง</option><option value="fine">FINE · เหลือง</option><option value="do">DO · เขียว</option></select></div>
           </div>
           <div class="bulk-toolbar">
             <label class="checkbox-inline"><input id="selectAllResponses" type="checkbox" /> เลือกทั้งหมดในรายการที่กรองอยู่</label>
@@ -354,22 +344,36 @@
   </main>
 
   <section id="projector" class="projector hidden">
-    <div class="projector-top"><div><span class="eyebrow">LIVE PROJECTOR</span><h2 id="projectorSessionName">ผลรวมสด</h2></div><button id="btnCloseProjector" class="btn btn-ghost">ปิด</button></div>
-    <div class="projector-stats">
-      <div><span>ผู้เข้าร่วม</span><b id="projTotal">0</b></div>
-      <div><span>THINK</span><b id="projThink">0</b></div>
-      <div><span>FIGHT</span><b id="projFight">0</b></div>
-      <div><span>FINE</span><b id="projFine">0</b></div>
-      <div><span>DO</span><b id="projDo">0</b></div>
+    <div class="projector-top"><div><span class="eyebrow">LIVE PROJECTOR</span><h2 id="projectorSessionName">ผลรวมสด</h2><p id="projectorUpdatedAt" class="projector-updated">อัปเดตอัตโนมัติทุก 5 วินาที</p></div><div class="projector-controls"><span id="projectorModeLabel" class="live-chip"><i></i> AUTO SUMMARY</span><button id="btnCloseProjector" class="btn btn-ghost">ปิด</button></div></div>
+    <div class="projector-stage">
+      <section class="projector-slide active" data-projector-slide="0">
+        <div class="projector-slide-title"><span>OVERVIEW</span><h3>ภาพรวมกิจกรรมแบบสด</h3></div>
+        <div class="projector-stats">
+          <div><span>ผู้เข้าร่วม</span><b id="projTotal">0</b></div>
+          <div><span>THINK</span><b id="projThink">0</b></div>
+          <div><span>FIGHT</span><b id="projFight">0</b></div>
+          <div><span>FINE</span><b id="projFine">0</b></div>
+          <div><span>DO</span><b id="projDo">0</b></div>
+        </div>
+        <div class="projector-grid">
+          <div class="proj-chart"><canvas id="projectorRadar"></canvas></div>
+          <div id="projectorInsight" class="projector-insight"></div>
+        </div>
+      </section>
+      <section class="projector-slide" data-projector-slide="1">
+        <div class="projector-slide-title"><span>COLOR MIX</span><h3>สัดส่วนสีเด่นของผู้เข้าร่วม</h3></div>
+        <div class="projector-color-grid"><div class="proj-doughnut"><canvas id="projectorDoughnut"></canvas></div><div id="projectorColorLegend" class="projector-color-legend"></div></div>
+      </section>
+      <section class="projector-slide" data-projector-slide="2">
+        <div class="projector-slide-title"><span>TEAM DNA</span><h3>พลังของทีมและข้อเสนอแนะ</h3></div>
+        <div class="projector-team-layout"><div class="proj-chart"><canvas id="projectorTeamRadar"></canvas></div><div id="projectorTeamInsight" class="projector-insight"></div></div>
+      </section>
     </div>
-    <div class="projector-grid">
-      <div class="proj-chart"><canvas id="projectorRadar"></canvas></div>
-      <div id="projectorInsight" class="projector-insight"></div>
-    </div>
-    <div class="projector-note">โหมดฉายไม่แสดงชื่อผู้เข้าร่วม</div>
+    <div class="projector-pagination"><button class="active" data-projector-dot="0"></button><button data-projector-dot="1"></button><button data-projector-dot="2"></button></div>
+    <div class="projector-note">โหมดฉายไม่แสดงชื่อผู้เข้าร่วม · สลับหน้าสรุปอัตโนมัติ</div>
   </section>
 
-  <div id="modalHow" class="modal" aria-hidden="true"><div class="modal-backdrop" data-close-modal></div><div class="modal-card"><button class="modal-x" data-close-modal>×</button><span class="eyebrow">HOW IT WORKS</span><h3>ง่าย ๆ แค่ 3 ขั้นตอน</h3><div class="how-grid"><div><b>01</b><h4>รู้จักกันก่อน</h4><p>กรอกชื่อ กลุ่ม และรหัสผู้เข้าร่วม</p></div><div><b>02</b><h4>เลือก 5 คำ</h4><p>เลือกคำที่เป็นตัวคุณที่สุด ไม่ใช่สิ่งที่ “ควรเป็น”</p></div><div><b>03</b><h4>ดู Color Signature</h4><p>รับผล 4 สี กราฟใยแมงมุม และคำแนะนำ</p></div></div></div></div>
+  <div id="modalHow" class="modal" aria-hidden="true"><div class="modal-backdrop" data-close-modal></div><div class="modal-card"><button class="modal-x" data-close-modal>×</button><span class="eyebrow">HOW IT WORKS</span><h3>ง่าย ๆ แค่ 3 ขั้นตอน</h3><div class="how-grid"><div><b>01</b><h4>รู้จักกันก่อน</h4><p>กรอกชื่อและกลุ่มสำหรับแสดงผลกิจกรรม</p></div><div><b>02</b><h4>เลือก 5 คำ</h4><p>เลือกคำที่เป็นตัวคุณที่สุด ไม่ใช่สิ่งที่ “ควรเป็น”</p></div><div><b>03</b><h4>ดู Color Signature</h4><p>รับผล 4 สี กราฟใยแมงมุม และคำแนะนำ</p></div></div></div></div>
 
   <div id="modalPrivacy" class="modal" aria-hidden="true"><div class="modal-backdrop" data-close-modal></div><div class="modal-card"><button class="modal-x" data-close-modal>×</button><span class="eyebrow">PRIVACY NOTICE</span><h3>การเก็บและใช้ข้อมูล</h3><div id="privacyNoticeText" class="privacy-text"></div></div></div>
 
@@ -403,6 +407,21 @@
       <div class="confirm-actions">
         <button id="btnConfirmCancel" class="btn btn-ghost" type="button">ยกเลิก</button>
         <button id="btnConfirmOk" class="btn btn-danger" type="button">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <div id="modalNotice" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-notice></div>
+    <div class="modal-card notice-modal-card">
+      <div id="noticeIcon" class="notice-icon success">✓</div>
+      <span class="eyebrow" id="noticeEyebrow">ACTION COMPLETED</span>
+      <h3 id="noticeTitle">สำเร็จแล้ว</h3>
+      <p id="noticeMessage" class="confirm-message">รายการของคุณดำเนินการเรียบร้อยแล้ว</p>
+      <div class="confirm-actions">
+        <button id="btnNoticeOk" class="btn btn-primary" type="button">ตกลง</button>
       </div>
     </div>
   </div>
