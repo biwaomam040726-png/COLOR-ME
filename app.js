@@ -41,7 +41,7 @@ const DEFAULT_CONFIG={
 let state={
   profile:{},selected:[],result:null,responses:[],sessions:[],activeSession:null,selectedResponseIds:[],liveUpdatedAt:null,
   demoMode:false,firebaseReady:false,currentAdmin:null,config:structuredClone(DEFAULT_CONFIG),
-  unsubscribeResponses:null,unsubscribeSessions:null,projectorTimer:null,projectorSlideTimer:null,projectorSlide:0,projectorMode:"tv",chartMotionStarted:false,audioReady:false,audioStarted:false,soundEnabled:localStorage.getItem("colorMeSound")!=="off",musicTimer:null,analysisAudioTimer:null,initialResponsesLoaded:false,projectorLastSignature:"",projectorNewIds:new Set()
+  unsubscribeResponses:null,unsubscribeSessions:null,projectorTimer:null,projectorSlideTimer:null,projectorSlide:0,projectorMode:"tv",chartMotionStarted:false,audioReady:false,audioStarted:false,soundEnabled:true,musicTimer:null,analysisAudioTimer:null,initialResponsesLoaded:false,projectorLastSignature:"",projectorNewIds:new Set()
 };
 let charts={result:null,adminRadar:null,adminDoughnut:null,detail:null,team:null,projector:null,projectorDoughnut:null,projectorTeam:null};
 let fb={};
@@ -177,6 +177,16 @@ const CONTINUOUS_CHART_PLUGIN={
       }
       chart.data.datasets.forEach((ds,di)=>{if(di!==0)return;const meta=chart.getDatasetMeta(di);meta?.data?.forEach((pt,idx)=>{const pulse=5+(Math.sin(t*2.8+idx*.9)+1)*2.3;const col=(Array.isArray(ds.pointBackgroundColor)?ds.pointBackgroundColor[idx]:ds.pointBackgroundColor)||'#8fb5ff';ctx.save();ctx.fillStyle=col;ctx.globalAlpha=.15;ctx.shadowColor=col;ctx.shadowBlur=20;ctx.beginPath();ctx.arc(pt.x,pt.y,pulse+5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.06;ctx.beginPath();ctx.arc(pt.x,pt.y,pulse+12,0,Math.PI*2);ctx.fill();ctx.restore();});});
       ctx.save();ctx.strokeStyle='rgba(115,188,255,.10)';ctx.lineWidth=1;for(let i=0;i<3;i++){const rr=radius*(.72+i*.11)+Math.sin(t*1.3+i)*4;ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.stroke();}ctx.restore();
+    }
+    if(chart.config.type==="line"){
+      const meta=chart.getDatasetMeta(0),pts=meta?.data||[];
+      if(pts.length>1){
+        const segs=[];let total=0;for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],len=Math.hypot(b.x-a.x,b.y-a.y);segs.push({a,b,len});total+=len;}
+        let d=((t/2.7)%1)*total,pos=pts[0];for(const seg of segs){if(d<=seg.len){const u=seg.len?d/seg.len:0;pos={x:seg.a.x+(seg.b.x-seg.a.x)*u,y:seg.a.y+(seg.b.y-seg.a.y)*u};break;}d-=seg.len;}
+        ctx.save();ctx.strokeStyle=`rgba(143,181,255,${.55+.2*Math.sin(t*2)})`;ctx.lineWidth=3;ctx.shadowColor='rgba(84,174,255,.9)';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();ctx.restore();
+        for(let i=10;i>=0;i--){const alpha=(1-i/10)*.85;const trailDist=Math.max(0,((t/2.7)%1)-i*.018);let td=trailDist*total,tp=pts[0];for(const seg of segs){if(td<=seg.len){const u=seg.len?td/seg.len:0;tp={x:seg.a.x+(seg.b.x-seg.a.x)*u,y:seg.a.y+(seg.b.y-seg.a.y)*u};break;}td-=seg.len;}ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=i<3?'#effcff':'#72cfff';ctx.shadowColor='#58c9ff';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(tp.x,tp.y,2+(1-i/10)*4,0,Math.PI*2);ctx.fill();ctx.restore();}
+        ctx.save();ctx.fillStyle='#f5fdff';ctx.shadowColor='#72d6ff';ctx.shadowBlur=22;ctx.beginPath();ctx.arc(pos.x,pos.y,6+Math.sin(t*5)*1.2,0,Math.PI*2);ctx.fill();ctx.restore();
+      }
     }
     if(chart.config.type==="doughnut"){
       const arc=chart.getDatasetMeta(0)?.data?.[0]; if(!arc) return; const {x,y,outerRadius}=arc; const sweep=(t/2.5)%(Math.PI*2);
@@ -560,15 +570,33 @@ async function saveSession(){
 async function toggleSession(id){const s=state.sessions.find(x=>x.id===id);if(!s)return;const next=!s.isOpen;if(state.firebaseReady){await fb.fsFns.updateDoc(fb.fsFns.doc(fb.db,"sessions",id),{isOpen:next});}else{s.isOpen=next;localStorage.setItem("talentColorSessions",JSON.stringify(state.sessions));renderSessions();}}
 
 function sessionRows(id){return state.responses.filter(r=>r.sessionId===id);}
+function colorCounts(rows){return Object.fromEntries(COLORS.map(k=>[k,rows.filter(r=>r.dominant===k).length]));}
+function colorCountPercents(rows){const counts=colorCounts(rows),total=rows.length||1;return Object.fromEntries(COLORS.map(k=>[k,Math.round((counts[k]/total)*100)]));}
+function buildTeamLineChart(canvas,datasets,key,{showLegend=true}={}){
+  if(!canvas||!window.Chart)return null;
+  const existing=charts[key];
+  const normalized=datasets.map(ds=>({...ds,data:[...ds.data],tension:.36,fill:false,borderWidth:4,pointRadius:7,pointHoverRadius:9,pointBorderWidth:2,pointBorderColor:'#07111f'}));
+  if(existing&&existing.canvas===canvas&&existing.config.type==='line'){
+    existing.data.labels=['THINK','FIGHT','FINE','DO'];
+    existing.data.datasets=normalized;
+    existing.update();
+    return existing;
+  }
+  existing?.destroy?.();
+  markChartLoading(canvas);
+  charts[key]=new Chart(canvas,{type:'line',plugins:[CONTINUOUS_CHART_PLUGIN],data:{labels:['THINK','FIGHT','FINE','DO'],datasets:normalized.map(ds=>({...ds,data:ds.data.map(()=>0)}))},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:showLegend,labels:{color:'#c3cfdf',usePointStyle:true,font:{family:'Prompt'}}},tooltip:{backgroundColor:'rgba(7,17,31,.97)',borderColor:'rgba(132,170,220,.35)',borderWidth:1,titleColor:'#fff',bodyColor:'#dce8f5',padding:11,callbacks:{label:(ctx)=>`${ctx.dataset.label}: ${ctx.parsed.y} คน`}}},scales:{x:{grid:{color:'rgba(255,255,255,.07)'},ticks:{color:'#d7e5f4',font:{family:'Prompt',weight:'600'}}},y:{beginAtZero:true,suggestedMax:5,grid:{color:'rgba(255,255,255,.08)'},ticks:{precision:0,color:'#9fb2c7',font:{family:'Prompt'}}}},animation:{duration:1200,easing:'easeOutQuart'}}});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{charts[key].data.datasets=normalized;charts[key].update();}));
+  return charts[key];
+}
 function renderTeamDNA(){
   const a=$("#dnaSessionA").value,b=$("#dnaSessionB").value;if(!a&&!b)return;
-  const sa=state.sessions.find(s=>s.id===a),sb=state.sessions.find(s=>s.id===b),avA=averageScores(sessionRows(a)),avB=averageScores(sessionRows(b));
+  const sa=state.sessions.find(s=>s.id===a),sb=state.sessions.find(s=>s.id===b),rowsA=sessionRows(a),rowsB=sessionRows(b),cntA=colorCounts(rowsA),cntB=colorCounts(rowsB);
   const datasets=[];
-  if(a)datasets.push({label:sa?.name||"A",data:[avA.think,avA.fight,avA.fine,avA.do],borderColor:"#75a0ff",backgroundColor:"rgba(66,108,255,.12)",pointBackgroundColor:"#75a0ff",pointBorderColor:"#07111f",pointBorderWidth:2,borderWidth:3,fill:true});
-  if(b)datasets.push({label:sb?.name||"B",data:[avB.think,avB.fight,avB.fine,avB.do],borderColor:"#ff8e9b",backgroundColor:"rgba(255,69,93,.08)",pointBackgroundColor:"#ff8e9b",pointBorderColor:"#07111f",pointBorderWidth:2,borderWidth:3,fill:true});
-  buildAnimatedRadar($("#teamRadar"),datasets,"team",{plugins:{legend:{display:true,labels:{color:"#c3cfdf",usePointStyle:true,font:{family:"Prompt"}}}}});
-  const target=a?avA:avB;const sorted=COLORS.slice().sort((x,y)=>target[y]-target[x]),high=sorted[0],low=sorted.at(-1);
-  $("#dnaInsight").innerHTML=`<div class="dna-note"><b>พลังเด่นของทีม</b><p><span style="color:${META()[high].color}">${META()[high].label}</span> สูงสุดเฉลี่ย ${target[high]}% — ${META()[high].teamwork}</p></div><div class="dna-note"><b>พลังที่มีน้อยที่สุด</b><p><span style="color:${META()[low].color}">${META()[low].label}</span> เฉลี่ย ${target[low]}% ควรเพิ่มบทบาท/มุมมองแบบ ${META()[low].thai} ในทีม</p></div><div class="dna-note"><b>ข้อเสนอแนะ</b><p>${teamAdvice(target)}</p></div>`;
+  if(a)datasets.push({label:sa?.name||"A",data:COLORS.map(k=>cntA[k]),borderColor:'#75a0ff',backgroundColor:'#75a0ff',pointBackgroundColor:['#426cff','#ff455d','#ffc938','#37d889']});
+  if(b)datasets.push({label:sb?.name||"B",data:COLORS.map(k=>cntB[k]),borderColor:'#ff8e9b',backgroundColor:'#ff8e9b',pointBackgroundColor:['#426cff','#ff455d','#ffc938','#37d889']});
+  buildTeamLineChart($("#teamRadar"),datasets,"team",{showLegend:true});
+  const targetRows=a?rowsA:rowsB,target=colorCounts(targetRows),pct=colorCountPercents(targetRows),sorted=COLORS.slice().sort((x,y)=>target[y]-target[x]),high=sorted[0],low=sorted.at(-1);
+  $("#dnaInsight").innerHTML=`<div class="dna-note"><b>สีที่ผู้ใช้ได้มากที่สุด</b><p><span style="color:${META()[high].color}">${META()[high].label}</span> ${target[high]} คน (${pct[high]}%)</p></div><div class="dna-note"><b>สีที่มีน้อยที่สุด</b><p><span style="color:${META()[low].color}">${META()[low].label}</span> ${target[low]} คน (${pct[low]}%)</p></div><div class="dna-note"><b>ข้อเสนอแนะ</b><p>${teamAdvice(colorCountPercents(targetRows))}</p></div>`;
 }
 function teamAdvice(avg){const sorted=COLORS.slice().sort((a,b)=>avg[b]-avg[a]);const hi=sorted[0],lo=sorted.at(-1);if(avg[hi]-avg[lo]>=20)return `ทีมเอนเอียงไปทาง ${META()[hi].label} ชัดเจน ควรสร้างพื้นที่ให้ ${META()[lo].label} มีบทบาทมากขึ้น เพื่อสมดุลการคิด การตัดสินใจ คน และการลงมือทำ`;return"ทีมมีองค์ประกอบ 4 สีค่อนข้างสมดุล เหมาะกับการแบ่งบทบาทตามจุดแข็งและจับคู่คนต่างสีให้ทำงานร่วมกัน";}
 
@@ -699,12 +727,14 @@ function renderProjector(){
   COLORS.forEach(k=>$("#proj"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length);
   drawGroupRadar("projectorRadar",avg,"projector");
   drawDoughnutCanvas("projectorDoughnut",rows,"projectorDoughnut");
-  drawGroupRadar("projectorTeamRadar",avg,"projectorTeam");
+  const teamCounts=colorCounts(rows),teamPct=colorCountPercents(rows);
+  buildTeamLineChart($("#projectorTeamRadar"),[{label:'จำนวนผู้ใช้',data:COLORS.map(k=>teamCounts[k]),borderColor:'#8fb5ff',backgroundColor:'#8fb5ff',pointBackgroundColor:['#426cff','#ff455d','#ffc938','#37d889']}],"projectorTeam",{showLegend:false});
   renderProjectorColorLegend(rows);
   renderProjectorParticipants(rows);
   const sorted=COLORS.slice().sort((a,b)=>avg[b]-avg[a]),hi=sorted[0],lo=sorted.at(-1);
+  const teamSorted=COLORS.slice().sort((a,b)=>teamCounts[b]-teamCounts[a]),teamHi=teamSorted[0],teamLo=teamSorted.at(-1);
   $("#projectorInsight").innerHTML=`<div class="dna-note"><b>พลังเด่นของกลุ่ม</b><p><span style="color:${META()[hi].color}">${META()[hi].label}</span> เฉลี่ย ${avg[hi]}%</p></div><div class="dna-note"><b>พลังที่น้อยที่สุด</b><p><span style="color:${META()[lo].color}">${META()[lo].label}</span> เฉลี่ย ${avg[lo]}%</p></div><div class="dna-note"><b>Team insight</b><p>${teamAdvice(avg)}</p></div>`;
-  $("#projectorTeamInsight").innerHTML=`<div class="dna-note"><b>DNA ของทีม</b><p>${teamAdvice(avg)}</p></div><div class="dna-note"><b>พลังที่ควรเติม</b><p>เพิ่มบทบาทแบบ <span style="color:${META()[lo].color}">${META()[lo].label} · ${META()[lo].thai}</span> เพื่อช่วยสร้างสมดุลในการทำงานร่วมกัน</p></div><div class="dna-note"><b>จังหวะการสื่อสาร</b><p>ทีมมีพลัง ${META()[hi].label} เด่น ควรสื่อสารโดยรักษาจุดแข็งนี้ และเว้นพื้นที่ให้มุมมองของอีก 3 สีมีส่วนร่วม</p></div>`;
+  $("#projectorTeamInsight").innerHTML=`<div class="dna-note"><b>สีที่ผู้ใช้ได้มากที่สุด</b><p><span style="color:${META()[teamHi].color}">${META()[teamHi].label}</span> ${teamCounts[teamHi]} คน (${teamPct[teamHi]}%)</p></div><div class="dna-note"><b>สีที่ควรเติมในทีม</b><p><span style="color:${META()[teamLo].color}">${META()[teamLo].label}</span> ${teamCounts[teamLo]} คน (${teamPct[teamLo]}%)</p></div><div class="dna-note"><b>Team insight</b><p>${teamAdvice(teamPct)}</p></div>`;
 }
 
 
@@ -814,7 +844,7 @@ function wireEvents(){
   $$("[data-go-home]").forEach(b=>b.addEventListener("click",()=>showScreen("#screenHome")));$$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));$$(".modal-x").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));
   $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim()};renderWords();showScreen("#screenWords");});
   $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>finishReveal(),3500);setTimeout(()=>{renderResult();showScreen("#screenResult");playSuccessChime();$("#btnAnalyze").disabled=false;},3900);});
-  $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});if($("#btnSaveImage"))$("#btnSaveImage").addEventListener("click",saveResultCard);if($("#btnSaveStory"))$("#btnSaveStory").addEventListener("click",saveStoryCard);if($("#btnSavePdfCard"))$("#btnSavePdfCard").addEventListener("click",saveResultPdfCard);
+  $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});$("#btnResultBack")?.addEventListener("click",()=>{renderWords();showScreen("#screenWords");});if($("#btnSaveImage"))$("#btnSaveImage").addEventListener("click",saveResultCard);if($("#btnSaveStory"))$("#btnSaveStory").addEventListener("click",saveStoryCard);if($("#btnSavePdfCard"))$("#btnSavePdfCard").addEventListener("click",saveResultPdfCard);
   $("#btnBackToProfile")?.addEventListener("click",()=>showScreen("#screenProfile"));$("#btnBackToProfileBottom")?.addEventListener("click",()=>showScreen("#screenProfile"));
 
   $("#adminLoginForm").addEventListener("submit",async e=>{e.preventDefault();$("#adminLoginError").textContent="";try{await adminLogin($("#adminEmail").value.trim(),$("#adminPassword").value);}catch(ex){$("#adminLoginError").textContent=ex.message||"เข้าสู่ระบบไม่สำเร็จ";}});
@@ -862,63 +892,59 @@ async function resumeAudio(){
   if(!state.soundEnabled||!ensureAudio())return false;
   try{if(state.audio.ctx.state==="suspended")await state.audio.ctx.resume();return state.audio.ctx.state==="running";}catch(e){return false;}
 }
-function playPianoTone(freq,when,accent=1){
-  if(!state.audio?.ctx||!state.audio?.music)return;
-  const {ctx,music}=state.audio;
-  const partials=[{ratio:1,gain:.030},{ratio:2,gain:.010},{ratio:3,gain:.0045}];
-  partials.forEach((p,i)=>{
-    const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
-    osc.type=i===0?"sine":"triangle";
-    osc.frequency.setValueAtTime(freq*p.ratio,when);
-    osc.detune.setValueAtTime(i===0?3:-2,when);osc.detune.linearRampToValueAtTime(0,when+.045);
-    filter.type="lowpass";filter.frequency.setValueAtTime(i===0?3200:2200,when);filter.Q.value=.35;
-    const peak=p.gain*accent;
-    gain.gain.setValueAtTime(.0001,when);
-    gain.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),when+.012);
-    gain.gain.exponentialRampToValueAtTime(Math.max(.0001,peak*.28),when+.16);
-    gain.gain.exponentialRampToValueAtTime(.0001,when+.62);
-    osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.68);
-  });
+function createRockDriveCurve(amount=18){
+  const n=1024,curve=new Float32Array(n);for(let i=0;i<n;i++){const x=i*2/n-1;curve[i]=Math.tanh(x*amount/8);}return curve;
 }
-function playNylonPluck(freq,when,accent=1){
+function playRockGuitar(root,when,accent=1){
   if(!state.audio?.ctx||!state.audio?.music)return;
-  const {ctx,music}=state.audio;
-  const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
-  osc.type="triangle";osc.frequency.setValueAtTime(freq,when);osc.frequency.exponentialRampToValueAtTime(freq*.996,when+.25);
-  filter.type="lowpass";filter.frequency.setValueAtTime(1900,when);filter.frequency.exponentialRampToValueAtTime(750,when+.42);filter.Q.value=.7;
-  const peak=.020*accent;gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(peak,when+.006);gain.gain.exponentialRampToValueAtTime(.0001,when+.48);
-  osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.52);
+  const {ctx,music}=state.audio;const bus=ctx.createGain(),filter=ctx.createBiquadFilter(),drive=ctx.createWaveShaper();
+  bus.gain.value=.026*accent;filter.type='lowpass';filter.frequency.setValueAtTime(2200,when);filter.frequency.exponentialRampToValueAtTime(1150,when+.18);filter.Q.value=.75;drive.curve=createRockDriveCurve(12);drive.oversample='2x';
+  drive.connect(filter);filter.connect(bus);bus.connect(music);
+  [1,1.4983,2].forEach((ratio,i)=>{const osc=ctx.createOscillator(),g=ctx.createGain();osc.type=i===1?'sawtooth':'triangle';osc.frequency.value=root*ratio;osc.detune.value=(i-1)*3;g.gain.setValueAtTime(.0001,when);g.gain.exponentialRampToValueAtTime(i===0?.38:.24,when+.008);g.gain.exponentialRampToValueAtTime(.0001,when+.18);osc.connect(g);g.connect(drive);osc.start(when);osc.stop(when+.2);});
+}
+function playRockBass(freq,when,accent=1){
+  const {ctx,music}=state.audio;const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();osc.type='sawtooth';osc.frequency.value=freq;filter.type='lowpass';filter.frequency.value=520;filter.Q.value=.7;gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(.038*accent,when+.008);gain.gain.exponentialRampToValueAtTime(.0001,when+.28);osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.3);
+}
+function playRockKick(when,accent=1){
+  const {ctx,music}=state.audio;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(118,when);osc.frequency.exponentialRampToValueAtTime(48,when+.11);gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(.055*accent,when+.005);gain.gain.exponentialRampToValueAtTime(.0001,when+.14);osc.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.15);
+}
+function playRockNoise(when,type='hat',accent=1){
+  const {ctx,music}=state.audio;const duration=type==='snare'?.12:.035,buf=ctx.createBuffer(1,Math.floor(ctx.sampleRate*duration),ctx.sampleRate),data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*(1-i/data.length);const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();src.buffer=buf;filter.type=type==='snare'?'bandpass':'highpass';filter.frequency.value=type==='snare'?1500:6500;filter.Q.value=type==='snare'?.7:.3;gain.gain.setValueAtTime(type==='snare'?.038*accent:.016*accent,when);gain.gain.exponentialRampToValueAtTime(.0001,when+duration);src.connect(filter);filter.connect(gain);gain.connect(music);src.start(when);
+}
+function playRockLead(freq,when,accent=.5){
+  const {ctx,music}=state.audio;const osc=ctx.createOscillator(),gain=ctx.createGain(),delay=ctx.createDelay(.3),feedback=ctx.createGain(),filter=ctx.createBiquadFilter();osc.type='triangle';osc.frequency.value=freq;filter.type='lowpass';filter.frequency.value=2600;gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(.020*accent,when+.01);gain.gain.exponentialRampToValueAtTime(.0001,when+.26);delay.delayTime.value=.12;feedback.gain.value=.18;osc.connect(filter);filter.connect(gain);gain.connect(music);gain.connect(delay);delay.connect(feedback);feedback.connect(delay);delay.connect(music);osc.start(when);osc.stop(when+.28);
 }
 async function startAmbientMusic(){
   if(state.audioStarted||!state.soundEnabled)return;
   if(!await resumeAudio())return;
   const {ctx,music}=state.audio;
-  const progression=[
-    [261.63,329.63,392.00,493.88],
-    [220.00,261.63,329.63,392.00],
-    [174.61,220.00,261.63,329.63],
-    [196.00,246.94,293.66,329.63]
-  ];
-  const bass=[130.81,110.00,87.31,98.00];
-  const melody=[0,1,2,1,3,2,1,2];
+  const roots=[164.81,146.83,130.81,146.83]; // Em - D - C - D rock progression
+  const bassRoots=[82.41,73.42,65.41,73.42];
+  const lead=[329.63,392.00,440.00,392.00,329.63,293.66,329.63,392.00];
   let step=0;
-  audioRamp(music.gain,.32,.9);
+  audioRamp(music.gain,.48,.7);
   clearInterval(state.musicTimer);
   const tick=()=>{
     if(!state.soundEnabled||!state.audioStarted||!state.audio?.ctx||state.audio.ctx.state!=="running")return;
-    const now=ctx.currentTime+.018;
-    const chordIndex=Math.floor(step/8)%progression.length;
-    const noteIndex=melody[step%melody.length];
-    const chord=progression[chordIndex];
-    playPianoTone(chord[noteIndex],now,(step%4===0)?1.10:.82);
-    if(step%2===0)playNylonPluck(bass[chordIndex],now+.015,(step%8===0)?1.0:.72);
-    if(step%8===7)playPianoTone(chord[3]*2,now+.09,.42);
+    const now=ctx.currentTime+.016,chord=Math.floor(step/8)%roots.length,beat=step%8;
+    playRockNoise(now,'hat',beat%2===0?1:.65);
+    if(beat===0||beat===4)playRockKick(now,beat===0?1.15:.95);
+    if(beat===2||beat===6)playRockNoise(now,'snare',1.05);
+    if([0,3,4,6].includes(beat))playRockGuitar(roots[chord],now+.012,beat===0?1.08:.82);
+    if(beat===0||beat===4)playRockBass(bassRoots[chord],now+.006,beat===0?1:.8);
+    if(step%16===14||step%16===15)playRockLead(lead[step%lead.length],now+.035,.65);
     step++;
   };
-  state.audioStarted=true;
-  tick();
-  state.musicTimer=setInterval(tick,390);
-  updateSoundButton();
+  state.audioStarted=true;tick();state.musicTimer=setInterval(tick,225);updateSoundButton();
+}
+async function attemptAutoStartMusic(){
+  state.soundEnabled=true;localStorage.setItem('colorMeSound','on');
+  ensureAudio();
+  const started=await resumeAudio();
+  if(started)await startAmbientMusic();
+  const unlock=async()=>{state.soundEnabled=true;await resumeAudio();await startAmbientMusic();updateSoundButton();};
+  document.addEventListener('pointerdown',unlock,{once:true,capture:true});
+  document.addEventListener('keydown',unlock,{once:true,capture:true});
 }
 async function setSoundEnabled(enabled){
   state.soundEnabled=!!enabled;localStorage.setItem("colorMeSound",state.soundEnabled?"on":"off");
@@ -1051,4 +1077,4 @@ function setupPremiumMotion(){
   if(!document.body.dataset.motionReady){document.body.dataset.motionReady='1';render();}
 }
 
-(async function boot(){wireEvents();renderWords();setupPremiumMotion();bindUiSounds();startChartMotionLoop();await initFirebase();})();
+(async function boot(){wireEvents();renderWords();setupPremiumMotion();bindUiSounds();startChartMotionLoop();attemptAutoStartMusic();await initFirebase();})();

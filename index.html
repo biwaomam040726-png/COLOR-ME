@@ -199,6 +199,7 @@
       </div>
 
       <div class="result-actions compact-result-actions wrap-actions">
+        <button id="btnResultBack" class="btn btn-ghost" type="button">← กลับ</button>
         <button id="btnSaveStory" class="btn btn-primary" type="button">การ์ดผลลัพธ์</button>
         <button id="btnSavePdfCard" class="btn btn-ghost" type="button">Export การ์ดเป็น PDF</button>
         <button id="btnRestart" class="btn btn-ghost" type="button">ทำอีกครั้ง</button>
@@ -285,7 +286,7 @@
       <div id="tab-teamdna" class="admin-tab-pane">
         <div class="panel dna-panel">
           <div class="table-tools">
-            <div><span class="eyebrow">TEAM DNA</span><h3>เปรียบเทียบ DNA ของทีม</h3></div>
+            <div><span class="eyebrow">TEAM DNA</span><h3>เปรียบเทียบสีเด่นของทีมแบบเรียลไทม์</h3></div>
             <div class="filters teamdna-filters"><select id="dnaSessionA"></select><select id="dnaSessionB"></select><button id="btnDeleteDnaA" class="btn btn-danger btn-sm" type="button">ลบข้อมูล Session A</button><button id="btnDeleteDnaB" class="btn btn-danger btn-sm" type="button">ลบข้อมูล Session B</button></div>
           </div>
           <div class="dna-grid">
@@ -359,8 +360,8 @@
         <div class="projector-color-grid"><div class="proj-doughnut"><canvas id="projectorDoughnut"></canvas></div><div id="projectorColorLegend" class="projector-color-legend"></div></div>
       </section>
       <section class="projector-slide" data-projector-slide="2">
-        <div class="projector-slide-title"><span>TEAM DNA</span><h3>พลังของทีมและข้อเสนอแนะ</h3></div>
-        <div class="projector-team-layout"><div class="proj-chart"><canvas id="projectorTeamRadar"></canvas></div><div id="projectorTeamInsight" class="projector-insight"></div></div>
+        <div class="projector-slide-title"><span>TEAM DNA</span><h3>แนวโน้มสีเด่นของทีมและข้อเสนอแนะ</h3></div>
+        <div class="projector-team-layout"><div class="proj-chart team-line-chart"><canvas id="projectorTeamRadar"></canvas></div><div id="projectorTeamInsight" class="projector-insight"></div></div>
       </section>
     </div>
     <div class="projector-pagination"><button class="active" data-projector-dot="0"></button><button data-projector-dot="1"></button><button data-projector-dot="2"></button></div>

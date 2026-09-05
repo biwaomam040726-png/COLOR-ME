@@ -759,3 +759,15 @@ table th.col-check, table td.col-check{text-align:center}
 #projectorModeLabel.realtime-hit{animation:realtimeChipHit .72s ease-out}
 @keyframes realtimeChipHit{0%{transform:scale(.94);box-shadow:0 0 0 0 rgba(77,235,191,.38)}45%{transform:scale(1.045);box-shadow:0 0 0 12px rgba(77,235,191,.08),0 0 34px rgba(77,235,191,.26)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(77,235,191,0)}}
 .projector.realtime-pulse .projector-updated{color:#79f1c9;transition:color .45s ease}
+
+/* ===== V18 rock audio + realtime line Team DNA ===== */
+.team-line-chart{position:relative;min-height:300px}
+.team-line-chart::before{content:"";position:absolute;inset:8% 8%;border-radius:28px;background:linear-gradient(180deg,rgba(86,143,255,.045),rgba(55,216,137,.018));border:1px solid rgba(255,255,255,.035);pointer-events:none}
+#tab-teamdna .chart-wrap{min-height:420px}
+#tab-teamdna .chart-wrap canvas,.team-line-chart canvas{position:relative;z-index:1}
+#btnResultBack{order:-1}
+@media(max-width:720px){
+  #btnResultBack{width:100%}
+  .team-line-chart{min-height:250px}
+  #tab-teamdna .chart-wrap{min-height:320px}
+}
