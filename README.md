@@ -369,3 +369,11 @@ biwaomam040726-png.github.io
 - เพิ่มเอฟเฟกต์ Analysis Engine ตอนเปิดกราฟผลลัพธ์
 - เปลี่ยนการสร้างการ์ดแนวนอน/PDF เป็น Canvas renderer ขนาด 4K เพื่อลดปัญหากราฟตก/เลย์เอาต์เพี้ยนจาก html2canvas
 - TV Display แสดง Overview + Color Mix + Team DNA ในหน้าเดียว ไม่สลับหน้า
+
+
+## V19 — Premium Pop-Rock Audio + Scanner SFX
+- ปรับเพลงพื้นหลังใหม่เป็น original upbeat pop-rock/game-rock feel ใช้ clean guitar + piano pluck + bass + soft drums
+- ตัด sawtooth/distortion ที่ทำให้เกิดเสียงแหลมหรือคล้ายไมค์ช็อตออกจากเพลงหลัก
+- เพิ่ม compressor + low-pass master chain เพื่อคุม peak และลดเสียงบาดหู
+- เพิ่มเสียงสแกนแบบ stereo sweep ให้ทั้งหน้าวิเคราะห์และตอนสร้างกราฟผลลัพธ์
+- เพิ่มระดับเสียงเพลงและ SFX แต่คุมไม่ให้ clip
