@@ -19,6 +19,9 @@
     <div class="mesh mesh-b"></div>
     <div class="mesh mesh-c"></div>
     <div class="wave-field">
+      <span class="wave-ribbon wr-1"></span>
+      <span class="wave-ribbon wr-2"></span>
+      <span class="wave-ribbon wr-3"></span>
       <span class="wave-line wl-1"></span>
       <span class="wave-line wl-2"></span>
       <span class="wave-line wl-3"></span>
@@ -59,7 +62,6 @@
             <button id="btnStart" class="btn btn-primary" type="button">เริ่มค้นหาตัวเอง <span>→</span></button>
             <button id="btnHow" class="btn btn-ghost" type="button">ดูวิธีเล่น</button>
           </div>
-          <div class="trust-row"><span>✓ ใช้เวลาประมาณ 1–2 นาที</span><span>✓ เลือกเพียง 5 คำ</span><span>✓ ดูผลทันที</span></div>
         </div>
 
         <div class="hero-visual" aria-label="วงล้อบุคลิกภาพ 4 สี">
@@ -76,13 +78,6 @@
           <div class="float-card fc-4"><b>DO</b><span>ลงมือทำ</span></div>
         </div>
       </div>
-
-      <div class="color-principles">
-        <article class="principle p-blue"><span class="p-dot"></span><div><b>THINK · สีน้ำเงิน</b><p>คิด วิเคราะห์ วางแผน มองภาพรวม</p></div></article>
-        <article class="principle p-red"><span class="p-dot"></span><div><b>FIGHT · สีแดง</b><p>กล้า ตัดสินใจ รับผิดชอบ ขับเคลื่อน</p></div></article>
-        <article class="principle p-yellow"><span class="p-dot"></span><div><b>FINE · สีเหลือง</b><p>ใส่ใจคน ละเอียด ประนีประนอม คุณค่า</p></div></article>
-        <article class="principle p-green"><span class="p-dot"></span><div><b>DO · สีเขียว</b><p>ลงมือจริง เป็นขั้นตอน ทำให้เกิดผล</p></div></article>
-      </div>
     </section>
 
     <section id="screenProfile" class="screen">
@@ -94,9 +89,8 @@
           <label><span>ชื่อ–นามสกุล <em>*</em></span><input id="fullName" autocomplete="name" maxlength="100" required placeholder="กรอกชื่อ–นามสกุล" /></label>
           <div class="field-grid">
             <label><span>หน่วยงาน / ห้อง / กลุ่ม</span><input id="organization" maxlength="100" placeholder="เช่น สตท.1, ม.1/1, กลุ่ม A" /></label>
-            <label><span>รหัสผู้เข้าร่วม <em>*</em></span><input id="participantCode" maxlength="40" required placeholder="ใช้ป้องกันการทำซ้ำ" /></label>
+            <label><span>อีเมล <small>(ไม่บังคับ)</small></span><input id="email" type="email" autocomplete="email" maxlength="120" placeholder="name@example.com" /></label>
           </div>
-          <label><span>อีเมล <small>(ไม่บังคับ)</small></span><input id="email" type="email" autocomplete="email" maxlength="120" placeholder="name@example.com" /></label>
 
           <div class="privacy-mini">
             <div>
@@ -115,11 +109,12 @@
     <section id="screenWords" class="screen">
       <div class="panel word-panel">
         <div class="step-head sticky-head">
-          <div><span class="eyebrow">STEP 2 OF 3</span><h2>คำไหน “ใช่เรา” ที่สุด?</h2><p>เลือกให้ครบ 5 คำ จากความรู้สึกแรก ไม่ต้องคิดนาน</p></div>
+          <div class="step-copy"><button id="btnBackToProfile" class="back-link" type="button">← กลับ</button><span class="eyebrow">STEP 2 OF 3</span><h2>คำไหน “ใช่เรา” ที่สุด?</h2><p>เลือกให้ครบ 5 คำ จากความรู้สึกแรก ไม่ต้องคิดนาน</p></div>
           <div class="pick-meter"><b id="pickCount">0</b><span>/ 5</span></div>
         </div>
         <div id="wordCloud" class="word-cloud"></div>
         <div class="word-footer">
+          <button id="btnBackToProfileBottom" class="btn btn-ghost word-back" type="button">← กลับ</button>
           <div class="selected-preview"><span>คำที่เลือก</span><div id="selectedChips" class="chips"><i>ยังไม่ได้เลือก</i></div></div>
           <button id="btnAnalyze" class="btn btn-primary" type="button" disabled>วิเคราะห์ตัวเรา ✦</button>
         </div>
@@ -254,7 +249,7 @@
         <article class="panel admin-table-card">
           <div class="table-tools">
             <div><span class="eyebrow">PARTICIPANTS</span><h3>ผลรายบุคคล</h3></div>
-            <div class="filters"><input id="adminSearch" placeholder="ค้นหาชื่อ / หน่วยงาน / รหัส" /><select id="adminColorFilter"><option value="">ทุกสี</option><option value="think">THINK · น้ำเงิน</option><option value="fight">FIGHT · แดง</option><option value="fine">FINE · เหลือง</option><option value="do">DO · เขียว</option></select></div>
+            <div class="filters"><input id="adminSearch" placeholder="ค้นหาชื่อ / หน่วยงาน / อีเมล" /><select id="adminColorFilter"><option value="">ทุกสี</option><option value="think">THINK · น้ำเงิน</option><option value="fight">FIGHT · แดง</option><option value="fine">FINE · เหลือง</option><option value="do">DO · เขียว</option></select></div>
           </div>
           <div class="table-scroll"><table><thead><tr><th>ผู้เข้าร่วม</th><th>Session</th><th>หน่วยงาน/กลุ่ม</th><th>5 คำ</th><th>สีเด่น</th><th>คะแนน 4 สี</th><th>เวลา</th><th></th></tr></thead><tbody id="adminTableBody"></tbody></table></div>
         </article>

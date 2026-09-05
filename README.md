@@ -1,4 +1,4 @@
-# COLOR ME V4 — เกมรู้จักตัวเองผ่าน 5 คำ
+# COLOR ME V5 — เกมรู้จักตัวเองผ่าน 5 คำ
 
 Static Web App สำหรับ **GitHub Pages + Firebase Authentication + Cloud Firestore**
 
@@ -301,3 +301,12 @@ biwaomam040726-png.github.io
 - วงล้อเคลื่อนไหวแบบลอยตัว
 - การ์ดลอยและ parallax ตามเมาส์
 - ปุ่มเงาไลท์และ glassmorphism พรีเมียม
+
+
+## V5 changes
+- ลบกล่องคำอธิบาย THINK/FIGHT/FINE/DO ด้านล่างหน้าแรก
+- ลบช่องรหัสผู้เข้าร่วม
+- ป้องกันส่งซ้ำด้วย Firebase Anonymous UID ต่อ Session แทน
+- เพิ่มปุ่มกลับในหน้าเลือกคำ
+- UI ปรับเป็น corporate premium: คอมโพเนนต์นิ่งขึ้น แต่ ambient wave/background motion ชัดขึ้น
+- อัปเดต firestore.rules ให้รองรับโครงสร้างใหม่

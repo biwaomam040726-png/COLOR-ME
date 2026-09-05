@@ -53,6 +53,11 @@ const WORDS=()=>state.config.words||DEFAULT_WORDS;
 function isConfigured(){return firebaseConfig.apiKey&&!firebaseConfig.apiKey.includes("PASTE_")&&firebaseConfig.projectId&&!firebaseConfig.projectId.includes("PASTE_");}
 function escapeHtml(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 function slug(s=""){return String(s).trim().toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9ก-๙_-]/g,"");}
+function getDeviceId(){
+  let id=localStorage.getItem("colorMeDeviceId");
+  if(!id){id=(crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`);localStorage.setItem("colorMeDeviceId",id);}
+  return id;
+}
 async function sha256(text){const b=new TextEncoder().encode(text);const h=await crypto.subtle.digest("SHA-256",b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 function showScreen(id){$$(".screen").forEach(s=>s.classList.remove("active"));$(id).classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}
 function openModal(id){$(id).classList.add("open");$(id).setAttribute("aria-hidden","false");}
@@ -131,9 +136,10 @@ function analyze(){
 }
 async function checkDuplicateAndSave(result){
   const sessionId=state.activeSession?.id||"open";
-  const code=slug(state.profile.participantCode);
-  const responseId=await sha256(`${sessionId}|${code}`);
-  const payload={fullName:state.profile.fullName,organization:state.profile.organization||"",participantCode:state.profile.participantCode||"",email:state.profile.email||"",selectedWords:result.selectedWords,scores:result.scores,dominant:result.dominant,secondary:result.secondary,sessionId,sessionName:state.activeSession?.name||"Open session",consent:true,version:"3.0.0"};
+  if(state.firebaseReady && !fb.auth.currentUser) await ensureAnon();
+  const identity=state.firebaseReady?(fb.auth.currentUser?.uid||getDeviceId()):getDeviceId();
+  const responseId=await sha256(`${sessionId}|${identity}`);
+  const payload={fullName:state.profile.fullName,organization:state.profile.organization||"",email:state.profile.email||"",selectedWords:result.selectedWords,scores:result.scores,dominant:result.dominant,secondary:result.secondary,sessionId,sessionName:state.activeSession?.name||"Open session",consent:true,version:"5.0.0"};
   if(state.firebaseReady){
     const {doc,setDoc,serverTimestamp}=fb.fsFns;try{
       if(!fb.auth.currentUser)await ensureAnon();
@@ -141,12 +147,12 @@ async function checkDuplicateAndSave(result){
       return true;
     }catch(e){
       console.error(e);
-      if(String(e.code||"").includes("permission-denied"))throw new Error("รหัสผู้เข้าร่วมนี้ทำใน Session นี้แล้ว หรือ Session ปิดรับคำตอบ");
+      if(String(e.code||"").includes("permission-denied"))throw new Error("อุปกรณ์นี้ส่งคำตอบใน Session นี้แล้ว หรือ Session ปิดรับคำตอบ");
       throw new Error("บันทึกข้อมูลไม่สำเร็จ");
     }
   }else{
     const arr=JSON.parse(localStorage.getItem("talentColorDemoResponses")||"[]");
-    if(arr.some(r=>r.id===responseId))throw new Error("รหัสผู้เข้าร่วมนี้ทำใน Session นี้แล้ว");
+    if(arr.some(r=>r.id===responseId))throw new Error("อุปกรณ์นี้ส่งคำตอบใน Session นี้แล้ว");
     arr.push({...payload,id:responseId,createdAt:new Date().toISOString()});localStorage.setItem("talentColorDemoResponses",JSON.stringify(arr));return true;
   }
 }
@@ -193,10 +199,10 @@ function loadDemoAdmin(){
     sessions.push({id:"demo-r1",name:"รุ่นที่ 1 · สตท.1",code:"R1",description:"รอบตัวอย่าง",isOpen:true,createdAt:new Date().toISOString()},{id:"demo-r2",name:"รุ่นที่ 2 · สตท.2",code:"R2",description:"รอบตัวอย่าง",isOpen:false,createdAt:new Date().toISOString()});
   }
   const seeds=[
-    {id:"d1",fullName:"ตัวอย่าง ก.",organization:"กลุ่ม A",participantCode:"A001",selectedWords:["คิด","วางแผน","วิเคราะห์","เข้าใจ","สร้างระบบ"],scores:{think:48,fight:10,fine:19,do:23},dominant:"think",secondary:"do",sessionId:sessions[0].id,sessionName:sessions[0].name,createdAt:new Date(Date.now()-3600000).toISOString()},
-    {id:"d2",fullName:"ตัวอย่าง ข.",organization:"กลุ่ม B",participantCode:"B014",selectedWords:["ลุย","ฉับไว","รับผิดชอบ","ลงมือ","สร้างโอกาส"],scores:{think:12,fight:47,fine:6,do:35},dominant:"fight",secondary:"do",sessionId:sessions[0].id,sessionName:sessions[0].name,createdAt:new Date(Date.now()-7200000).toISOString()},
-    {id:"d3",fullName:"ตัวอย่าง ค.",organization:"กลุ่ม A",participantCode:"A019",selectedWords:["เห็นอกเห็นใจ","เสมอภาค","ดี","เข้าใจ","มนุษยธรรม"],scores:{think:18,fight:3,fine:60,do:19},dominant:"fine",secondary:"do",sessionId:sessions[1].id,sessionName:sessions[1].name,createdAt:new Date(Date.now()-10800000).toISOString()},
-    {id:"d4",fullName:"ตัวอย่าง ง.",organization:"กลุ่ม C",participantCode:"C008",selectedWords:["ทำ","ลงมือ","ขั้นตอน","เป็นระบบ","สร้างระบบ"],scores:{think:20,fight:18,fine:3,do:59},dominant:"do",secondary:"think",sessionId:sessions[1].id,sessionName:sessions[1].name,createdAt:new Date(Date.now()-14400000).toISOString()}
+    {id:"d1",fullName:"ตัวอย่าง ก.",organization:"กลุ่ม A",selectedWords:["คิด","วางแผน","วิเคราะห์","เข้าใจ","สร้างระบบ"],scores:{think:48,fight:10,fine:19,do:23},dominant:"think",secondary:"do",sessionId:sessions[0].id,sessionName:sessions[0].name,createdAt:new Date(Date.now()-3600000).toISOString()},
+    {id:"d2",fullName:"ตัวอย่าง ข.",organization:"กลุ่ม B",selectedWords:["ลุย","ฉับไว","รับผิดชอบ","ลงมือ","สร้างโอกาส"],scores:{think:12,fight:47,fine:6,do:35},dominant:"fight",secondary:"do",sessionId:sessions[0].id,sessionName:sessions[0].name,createdAt:new Date(Date.now()-7200000).toISOString()},
+    {id:"d3",fullName:"ตัวอย่าง ค.",organization:"กลุ่ม A",selectedWords:["เห็นอกเห็นใจ","เสมอภาค","ดี","เข้าใจ","มนุษยธรรม"],scores:{think:18,fight:3,fine:60,do:19},dominant:"fine",secondary:"do",sessionId:sessions[1].id,sessionName:sessions[1].name,createdAt:new Date(Date.now()-10800000).toISOString()},
+    {id:"d4",fullName:"ตัวอย่าง ง.",organization:"กลุ่ม C",selectedWords:["ทำ","ลงมือ","ขั้นตอน","เป็นระบบ","สร้างระบบ"],scores:{think:20,fight:18,fine:3,do:59},dominant:"do",secondary:"think",sessionId:sessions[1].id,sessionName:sessions[1].name,createdAt:new Date(Date.now()-14400000).toISOString()}
   ];
   state.sessions=sessions;state.responses=[...local,...seeds];state.currentAdmin={email:"demo@local"};renderSessions();fillSessionSelectors();renderAdmin();showScreen("#screenAdmin");
 }
@@ -208,8 +214,8 @@ function renderAdmin(){
 function drawDoughnut(rows){if(charts.adminDoughnut)charts.adminDoughnut.destroy();charts.adminDoughnut=new Chart($("#adminDoughnut"),{type:"doughnut",data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data:COLORS.map(k=>rows.filter(r=>r.dominant===k).length),backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#0b182a",borderWidth:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#b7c5d7",usePointStyle:true,font:{family:"Prompt"}}}}}});}
 function renderTable(){
   const q=$("#adminSearch").value.trim().toLowerCase(),cf=$("#adminColorFilter").value;
-  const rows=filteredResponses().filter(r=>{const hay=[r.fullName,r.organization,r.participantCode,r.email,r.sessionName].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!cf||r.dominant===cf);});
-  $("#adminTableBody").innerHTML=rows.length?rows.map(r=>`<tr><td><div class="person-name">${escapeHtml(r.fullName||"—")}</div><div class="person-sub">${escapeHtml(r.participantCode||r.email||"")}</div></td><td>${escapeHtml(r.sessionName||"—")}</td><td>${escapeHtml(r.organization||"—")}</td><td>${(r.selectedWords||[]).map(escapeHtml).join(" · ")}</td><td><span class="color-badge cb-${r.dominant}">${META()[r.dominant]?.label||"—"}</span></td><td><div class="score-mini">${COLORS.map(k=>`<i>${META()[k].label[0]} ${r.scores?.[k]??0}%</i>`).join("")}</div></td><td>${formatDate(r.createdAt)}</td><td><button class="btn btn-ghost btn-sm" data-detail="${r.id}">ดูกราฟ</button></td></tr>`).join(""):`<tr><td colspan="8" style="text-align:center;color:#7d8da2;padding:36px">ไม่พบข้อมูล</td></tr>`;
+  const rows=filteredResponses().filter(r=>{const hay=[r.fullName,r.organization,r.email,r.sessionName].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!cf||r.dominant===cf);});
+  $("#adminTableBody").innerHTML=rows.length?rows.map(r=>`<tr><td><div class="person-name">${escapeHtml(r.fullName||"—")}</div><div class="person-sub">${escapeHtml(r.email||"")}</div></td><td>${escapeHtml(r.sessionName||"—")}</td><td>${escapeHtml(r.organization||"—")}</td><td>${(r.selectedWords||[]).map(escapeHtml).join(" · ")}</td><td><span class="color-badge cb-${r.dominant}">${META()[r.dominant]?.label||"—"}</span></td><td><div class="score-mini">${COLORS.map(k=>`<i>${META()[k].label[0]} ${r.scores?.[k]??0}%</i>`).join("")}</div></td><td>${formatDate(r.createdAt)}</td><td><button class="btn btn-ghost btn-sm" data-detail="${r.id}">ดูกราฟ</button></td></tr>`).join(""):`<tr><td colspan="8" style="text-align:center;color:#7d8da2;padding:36px">ไม่พบข้อมูล</td></tr>`;
   $$("[data-detail]").forEach(b=>b.addEventListener("click",()=>showDetail(b.dataset.detail)));
 }
 function showDetail(id){const r=state.responses.find(x=>String(x.id)===String(id));if(!r)return;$("#detailContent").innerHTML=`<span class="eyebrow">INDIVIDUAL RESULT</span><h3 class="detail-title">${escapeHtml(r.fullName||"—")}</h3><div class="detail-meta">${escapeHtml(r.sessionName||"")} · ${escapeHtml(r.organization||"")} · ${formatDate(r.createdAt)}</div><div class="detail-words">${(r.selectedWords||[]).map(w=>`<span class="result-word">${escapeHtml(w)}</span>`).join("")}</div>`;openModal("#modalDetail");setTimeout(()=>drawRadar("detailRadar",r.scores||averageScores([]),"detail"),50);}
@@ -256,7 +262,7 @@ function showQr(sessionId){
   $("#qrBox").innerHTML="";new QRCode($("#qrBox"),{text:u.toString(),width:220,height:220,colorDark:"#07111f",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.H});$("#qrUrl").textContent=u.toString();$("#qrSessionTitle").textContent=s.name;openModal("#modalQr");
 }
 
-function csvData(rows){return [["ชื่อ-นามสกุล","Session","หน่วยงาน/กลุ่ม","รหัส","อีเมล","คำที่เลือก","สีเด่น","สีรอง","THINK","FIGHT","FINE","DO","เวลา"],...rows.map(r=>[r.fullName||"",r.sessionName||"",r.organization||"",r.participantCode||"",r.email||"",(r.selectedWords||[]).join("|"),r.dominant||"",r.secondary||"",r.scores?.think??0,r.scores?.fight??0,r.scores?.fine??0,r.scores?.do??0,formatDate(r.createdAt)])];}
+function csvData(rows){return [["ชื่อ-นามสกุล","Session","หน่วยงาน/กลุ่ม","อีเมล","คำที่เลือก","สีเด่น","สีรอง","THINK","FIGHT","FINE","DO","เวลา"],...rows.map(r=>[r.fullName||"",r.sessionName||"",r.organization||"",r.email||"",(r.selectedWords||[]).join("|"),r.dominant||"",r.secondary||"",r.scores?.think??0,r.scores?.fight??0,r.scores?.fine??0,r.scores?.do??0,formatDate(r.createdAt)])];}
 function exportCsv(){const lines=csvData(filteredResponses()).map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const blob=new Blob(["\ufeff"+lines],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`talent-color-${Date.now()}.csv`;a.click();URL.revokeObjectURL(a.href);}
 function exportXlsx(){const ws=XLSX.utils.aoa_to_sheet(csvData(filteredResponses())),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Results");XLSX.writeFile(wb,`talent-color-${Date.now()}.xlsx`);}
 async function exportPdf(){
@@ -308,9 +314,10 @@ function wireEvents(){
   $("#btnStart").addEventListener("click",()=>{if(state.activeSession?.isOpen===false)return toast("Session นี้ปิดรับคำตอบแล้ว");showScreen("#screenProfile");});
   $("#btnHow").addEventListener("click",()=>openModal("#modalHow"));$("#btnPrivacy").addEventListener("click",()=>openModal("#modalPrivacy"));$("#btnAdmin").addEventListener("click",()=>showScreen("#screenAdminLogin"));
   $$("[data-go-home]").forEach(b=>b.addEventListener("click",()=>showScreen("#screenHome")));$$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));$$(".modal-x").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));
-  $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim(),participantCode:$("#participantCode").value.trim(),email:$("#email").value.trim()};renderWords();showScreen("#screenWords");});
+  $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim(),email:$("#email").value.trim()};renderWords();showScreen("#screenWords");});
   $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>{renderResult();showScreen("#screenResult");$("#btnAnalyze").disabled=false;},2800);});
   $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});$("#btnSaveImage").addEventListener("click",saveResultCard);
+  $("#btnBackToProfile")?.addEventListener("click",()=>showScreen("#screenProfile"));$("#btnBackToProfileBottom")?.addEventListener("click",()=>showScreen("#screenProfile"));
 
   $("#adminLoginForm").addEventListener("submit",async e=>{e.preventDefault();$("#adminLoginError").textContent="";try{await adminLogin($("#adminEmail").value.trim(),$("#adminPassword").value);}catch(ex){$("#adminLoginError").textContent=ex.message||"เข้าสู่ระบบไม่สำเร็จ";}});
   $("#btnDemoDashboard").addEventListener("click",loadDemoAdmin);$("#btnAdminLogout").addEventListener("click",async()=>{state.unsubscribeResponses?.();state.unsubscribeSessions?.();if(state.firebaseReady&&fb.auth.currentUser)await fb.authFns.signOut(fb.auth);state.currentAdmin=null;showScreen("#screenHome");});
@@ -328,21 +335,12 @@ function setupPremiumMotion(){
   const hero=document.querySelector('.hero');
   const visual=document.querySelector('.hero-visual');
   if(!hero||!visual)return;
-  const cards=[...document.querySelectorAll('.float-card')];
-  const principles=[...document.querySelectorAll('.principle')];
-  let raf=0,targetX=0,targetY=0,currentX=0,currentY=0;
+  let targetX=0,targetY=0,currentX=0,currentY=0;
   const render=()=>{
-    currentX += (targetX-currentX)*0.08;
-    currentY += (targetY-currentY)*0.08;
-    visual.style.transform=`rotateY(${currentX*5}deg) rotateX(${currentY*-4}deg)`;
-    cards.forEach((card,i)=>{
-      const m=(i%2===0?1:-1)*(8+i*1.5);
-      card.style.transform=`translate3d(${currentX*m}px, ${currentY*m}px, ${22+i*6}px)`;
-    });
-    principles.forEach((card,i)=>{
-      card.style.transform=`translateY(${Math.sin((Date.now()/900)+(i*.9))*2}px)`;
-    });
-    raf=requestAnimationFrame(render);
+    currentX+=(targetX-currentX)*0.055;
+    currentY+=(targetY-currentY)*0.055;
+    visual.style.transform=`translate3d(${currentX*5}px,${currentY*4}px,0) rotateY(${currentX*1.8}deg) rotateX(${currentY*-1.4}deg)`;
+    requestAnimationFrame(render);
   };
   hero.addEventListener('pointermove',e=>{
     const rect=hero.getBoundingClientRect();
@@ -350,10 +348,7 @@ function setupPremiumMotion(){
     targetY=((e.clientY-rect.top)/rect.height-.5)*2;
   });
   hero.addEventListener('pointerleave',()=>{targetX=0;targetY=0;});
-  if(!document.body.dataset.motionReady){
-    document.body.dataset.motionReady='1';
-    render();
-  }
+  if(!document.body.dataset.motionReady){document.body.dataset.motionReady='1';render();}
 }
 
 (async function boot(){wireEvents();renderWords();setupPremiumMotion();await initFirebase();})();

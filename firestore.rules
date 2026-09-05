@@ -33,13 +33,12 @@ service cloud.firestore {
         && request.resource.data.consent == true
         && request.resource.data.fullName is string
         && request.resource.data.fullName.size() > 0
-        && request.resource.data.participantCode is string
-        && request.resource.data.participantCode.size() > 0
         && request.resource.data.sessionId is string
         && request.resource.data.selectedWords is list
         && request.resource.data.selectedWords.size() == 5
-        && exists(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId))
-        && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.isOpen == true;
+        && (request.resource.data.sessionId == "open"
+          || (exists(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId))
+            && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.isOpen == true));
 
       allow read, update, delete: if isAdmin();
     }
