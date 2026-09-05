@@ -1,3 +1,13 @@
+
+## V15 — Premium Audio + Mobile UX
+
+- เพิ่มปุ่มเปิด/ปิดเสียงใน Header
+- Ambient music เริ่มหลังการแตะ/คลิกครั้งแรกตามข้อจำกัด autoplay ของ browser
+- เพิ่ม SFX สำหรับปุ่ม, เลือกคำ, ย้อนกลับ, ปุ่มหลัก และเสียง chime ตอนแสดงผล
+- เพิ่มความดังให้อยู่ในระดับฟังได้ชัดแต่ไม่รบกวน
+- ปรับ Responsive สำหรับมือถือ: Header แบบ sticky, ปุ่ม touch-friendly, หน้าเลือกคำและปุ่มวิเคราะห์แบบ sticky, Result Card และ Admin ใช้งานง่ายขึ้น
+- รองรับ safe-area บนอุปกรณ์มือถือ
+
 # COLOR ME V7 — เกมรู้จักตัวเองผ่าน 5 คำ
 
 Static Web App สำหรับ **GitHub Pages + Firebase Authentication + Cloud Firestore**

@@ -41,7 +41,7 @@ const DEFAULT_CONFIG={
 let state={
   profile:{},selected:[],result:null,responses:[],sessions:[],activeSession:null,selectedResponseIds:[],liveUpdatedAt:null,
   demoMode:false,firebaseReady:false,currentAdmin:null,config:structuredClone(DEFAULT_CONFIG),
-  unsubscribeResponses:null,unsubscribeSessions:null,projectorTimer:null,projectorSlideTimer:null,projectorSlide:0,projectorMode:"tv",chartMotionStarted:false,audioReady:false,audioStarted:false
+  unsubscribeResponses:null,unsubscribeSessions:null,projectorTimer:null,projectorSlideTimer:null,projectorSlide:0,projectorMode:"tv",chartMotionStarted:false,audioReady:false,audioStarted:false,soundEnabled:localStorage.getItem("colorMeSound")!=="off"
 };
 let charts={result:null,adminRadar:null,adminDoughnut:null,detail:null,team:null,projector:null,projectorDoughnut:null,projectorTeam:null};
 let fb={};
@@ -789,7 +789,7 @@ function wireEvents(){
   $("#btnHow").addEventListener("click",()=>openModal("#modalHow"));if($("#btnPrivacy"))$("#btnPrivacy").addEventListener("click",()=>openModal("#modalPrivacy"));$("#btnAdmin").addEventListener("click",()=>showScreen("#screenAdminLogin"));
   $$("[data-go-home]").forEach(b=>b.addEventListener("click",()=>showScreen("#screenHome")));$$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));$$(".modal-x").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));
   $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim()};renderWords();showScreen("#screenWords");});
-  $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>finishReveal(),3500);setTimeout(()=>{renderResult();showScreen("#screenResult");$("#btnAnalyze").disabled=false;},3900);});
+  $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>finishReveal(),3500);setTimeout(()=>{renderResult();showScreen("#screenResult");playSuccessChime();$("#btnAnalyze").disabled=false;},3900);});
   $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});if($("#btnSaveImage"))$("#btnSaveImage").addEventListener("click",saveResultCard);if($("#btnSaveStory"))$("#btnSaveStory").addEventListener("click",saveStoryCard);if($("#btnSavePdfCard"))$("#btnSavePdfCard").addEventListener("click",saveResultPdfCard);
   $("#btnBackToProfile")?.addEventListener("click",()=>showScreen("#screenProfile"));$("#btnBackToProfileBottom")?.addEventListener("click",()=>showScreen("#screenProfile"));
 
@@ -805,51 +805,112 @@ function wireEvents(){
   if($("#btnDeleteExpired"))$("#btnDeleteExpired").addEventListener("click",deleteExpired);$("#btnProjector").addEventListener("click",()=>openProjector("tv"));if($("#btnTvDisplay"))$("#btnTvDisplay").addEventListener("click",()=>openProjector("tv"));$("#btnCloseProjector").addEventListener("click",closeProjector);$$('[data-projector-dot]').forEach(dot=>dot.addEventListener('click',()=>{showProjectorSlide(Number(dot.dataset.projectorDot));startProjectorSlideshow();}));
 }
 
+function updateSoundButton(){
+  const btn=$("#btnSound"),icon=$("#soundIcon"),label=$("#soundLabel");
+  if(!btn)return;
+  btn.setAttribute("aria-pressed",state.soundEnabled?"true":"false");
+  btn.classList.toggle("sound-on",state.soundEnabled&&state.audioStarted);
+  if(!state.soundEnabled){if(icon)icon.textContent="🔇";if(label)label.textContent="ปิดเสียง";return;}
+  if(icon)icon.textContent=state.audioStarted?"🔊":"♫";
+  if(label)label.textContent=state.audioStarted?"เสียงเปิด":"เสียงพร้อม";
+}
 function ensureAudio(){
-  if(state.audioReady) return true;
+  if(state.audioReady)return true;
   try{
     const Ctx=window.AudioContext||window.webkitAudioContext;
-    if(!Ctx) return false;
+    if(!Ctx)return false;
     const ctx=new Ctx();
-    const master=ctx.createGain(); master.gain.value=.06; master.connect(ctx.destination);
-    const music=ctx.createGain(); music.gain.value=0; music.connect(master);
-    state.audio={ctx,master,music}; state.audioReady=true; return true;
-  }catch(e){console.warn('Audio init failed',e); return false;}
+    const compressor=ctx.createDynamicsCompressor();
+    compressor.threshold.value=-18;compressor.knee.value=18;compressor.ratio.value=4;compressor.attack.value=.01;compressor.release.value=.24;
+    const master=ctx.createGain();master.gain.value=state.soundEnabled?.42:0;
+    const music=ctx.createGain();music.gain.value=0;
+    const sfx=ctx.createGain();sfx.gain.value=.42;
+    music.connect(compressor);sfx.connect(compressor);compressor.connect(master);master.connect(ctx.destination);
+    state.audio={ctx,master,music,sfx,compressor};state.audioReady=true;updateSoundButton();return true;
+  }catch(e){console.warn("Audio init failed",e);return false;}
 }
-function ramp(param,value,time=.12){try{param.cancelScheduledValues(state.audio.ctx.currentTime);param.linearRampToValueAtTime(value,state.audio.ctx.currentTime+time);}catch(e){}}
-function startAmbientMusic(){
-  if(state.audioStarted||!ensureAudio()) return;
+function audioRamp(param,value,time=.12){
+  if(!state.audio?.ctx)return;
+  const now=state.audio.ctx.currentTime;
+  try{param.cancelScheduledValues(now);param.setValueAtTime(param.value,now);param.linearRampToValueAtTime(value,now+time);}catch(e){}
+}
+async function resumeAudio(){
+  if(!state.soundEnabled||!ensureAudio())return false;
+  try{if(state.audio.ctx.state==="suspended")await state.audio.ctx.resume();return state.audio.ctx.state==="running";}catch(e){return false;}
+}
+async function startAmbientMusic(){
+  if(state.audioStarted||!state.soundEnabled)return;
+  if(!await resumeAudio())return;
   const {ctx,music}=state.audio;
-  if(ctx.state==='suspended') ctx.resume();
-  const notes=[220,277.18,329.63];
-  const oscs=[];
-  notes.forEach((freq,i)=>{
-    const osc=ctx.createOscillator(); const gain=ctx.createGain();
-    osc.type=i===0?'sine':(i===1?'triangle':'sine'); osc.frequency.value=freq; gain.gain.value=0;
-    osc.connect(gain); gain.connect(music); osc.start(); oscs.push({osc,gain,base:.012-(i*.002)});
+  const chord=[110,164.81,220,277.18];
+  const voices=[];
+  chord.forEach((freq,i)=>{
+    const osc=ctx.createOscillator();
+    const filter=ctx.createBiquadFilter();
+    const gain=ctx.createGain();
+    osc.type=i%2===0?"sine":"triangle";
+    osc.frequency.value=freq;
+    filter.type="lowpass";filter.frequency.value=620+(i*90);filter.Q.value=.45;
+    gain.gain.value=0;
+    osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start();
+    voices.push({osc,gain,target:[.027,.018,.015,.011][i]});
   });
-  const lfo=ctx.createOscillator(); const lfoGain=ctx.createGain();
-  lfo.type='sine'; lfo.frequency.value=.08; lfoGain.gain.value=.006; lfo.connect(lfoGain); lfoGain.connect(music.gain); lfo.start();
-  oscs.forEach(({gain,base},i)=>ramp(gain.gain,Math.max(.002,base),1.4+(i*.2)));
-  ramp(music.gain,.8,2.5); state.audio.oscs=oscs; state.audio.lfo=lfo; state.audioStarted=true;
+  const shimmer=ctx.createOscillator(),shimmerGain=ctx.createGain(),shimmerFilter=ctx.createBiquadFilter();
+  shimmer.type="sine";shimmer.frequency.value=554.37;shimmerFilter.type="lowpass";shimmerFilter.frequency.value=1000;shimmerGain.gain.value=0;
+  shimmer.connect(shimmerFilter);shimmerFilter.connect(shimmerGain);shimmerGain.connect(music);shimmer.start();
+  voices.forEach((v,i)=>audioRamp(v.gain.gain,v.target,1.2+i*.18));audioRamp(shimmerGain.gain,.004,2.2);audioRamp(music.gain,.22,2.4);
+  const lfo=ctx.createOscillator(),lfoGain=ctx.createGain();lfo.type="sine";lfo.frequency.value=.09;lfoGain.gain.value=.035;lfo.connect(lfoGain);lfoGain.connect(music.gain);lfo.start();
+  state.audio.voices=voices;state.audio.shimmer=shimmer;state.audio.shimmerGain=shimmerGain;state.audio.lfo=lfo;state.audioStarted=true;updateSoundButton();
 }
-function playUiClick(type='default'){
-  if(!ensureAudio()) return;
-  const {ctx,master}=state.audio; if(ctx.state==='suspended') ctx.resume(); startAmbientMusic();
-  const osc=ctx.createOscillator(); const gain=ctx.createGain(); const filter=ctx.createBiquadFilter();
-  osc.type=type==='confirm'?'triangle':'sine'; filter.type='lowpass'; filter.frequency.value=1800;
-  osc.frequency.setValueAtTime(type==='confirm'?520:420,ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(type==='confirm'?860:640,ctx.currentTime+.12);
-  gain.gain.setValueAtTime(.0001,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(.035,ctx.currentTime+.01); gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.16);
-  osc.connect(filter); filter.connect(gain); gain.connect(master); osc.start(); osc.stop(ctx.currentTime+.18);
+async function setSoundEnabled(enabled){
+  state.soundEnabled=!!enabled;localStorage.setItem("colorMeSound",state.soundEnabled?"on":"off");
+  if(!ensureAudio()){updateSoundButton();return;}
+  if(state.soundEnabled){await resumeAudio();audioRamp(state.audio.master.gain,.42,.24);await startAmbientMusic();}
+  else audioRamp(state.audio.master.gain,0,.18);
+  updateSoundButton();
+}
+function playUiClick(type="default"){
+  if(!state.soundEnabled||!ensureAudio())return;
+  resumeAudio();startAmbientMusic();
+  const {ctx,sfx}=state.audio;
+  const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
+  const isConfirm=type==="confirm",isWord=type==="word",isBack=type==="back";
+  osc.type=isConfirm?"triangle":"sine";filter.type="lowpass";filter.frequency.value=isWord?2300:1800;
+  const startFreq=isConfirm?560:(isWord?700:(isBack?350:430));
+  const endFreq=isConfirm?940:(isWord?920:(isBack?290:610));
+  osc.frequency.setValueAtTime(startFreq,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(endFreq,ctx.currentTime+.11);
+  gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(isConfirm?.14:.095,ctx.currentTime+.008);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+(isConfirm?.19:.135));
+  osc.connect(filter);filter.connect(gain);gain.connect(sfx);osc.start();osc.stop(ctx.currentTime+.22);
+}
+function playSuccessChime(){
+  if(!state.soundEnabled||!ensureAudio())return;resumeAudio();startAmbientMusic();
+  const notes=[659.25,783.99,987.77];
+  notes.forEach((freq,i)=>setTimeout(()=>{
+    if(!state.soundEnabled)return;
+    const {ctx,sfx}=state.audio,osc=ctx.createOscillator(),gain=ctx.createGain();osc.type="sine";osc.frequency.value=freq;
+    gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.09,ctx.currentTime+.015);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.32);
+    osc.connect(gain);gain.connect(sfx);osc.start();osc.stop(ctx.currentTime+.35);
+  },i*85));
 }
 function bindUiSounds(){
-  document.addEventListener('pointerdown',e=>{
-    const target=e.target.closest('button,.word-card,.admin-tab,.text-btn,.brand');
-    if(!target) return;
-    const type=target.classList.contains('btn-primary')?'confirm':'default';
+  updateSoundButton();
+  $("#btnSound")?.addEventListener("click",async e=>{
+    e.preventDefault();e.stopPropagation();
+    if(!state.audioStarted){state.soundEnabled=true;localStorage.setItem("colorMeSound","on");await resumeAudio();await startAmbientMusic();playSuccessChime();updateSoundButton();return;}
+    await setSoundEnabled(!state.soundEnabled);
+    if(state.soundEnabled)playSuccessChime();
+  });
+  document.addEventListener("pointerdown",e=>{
+    const target=e.target.closest("button,.word-card,.admin-tab,.text-btn,.brand");
+    if(!target||target.id==="btnSound")return;
+    if(state.soundEnabled){resumeAudio();startAmbientMusic();}
+    let type="default";
+    if(target.classList.contains("word-card"))type="word";
+    else if(target.matches("[data-go-home],#btnBackToProfile,#btnBackToProfileBottom,#btnRestart,#btnCloseProjector"))type="back";
+    else if(target.classList.contains("btn-primary"))type="confirm";
     playUiClick(type);
   },{passive:true});
-  document.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){playUiClick('default');}});
+  document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&state.soundEnabled)playUiClick("default");});
 }
 
 function setupPremiumMotion(){
