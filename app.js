@@ -878,21 +878,21 @@ function ensureAudio(){
     if(!Ctx)return false;
     const ctx=new Ctx();
 
-    // V20 SAFE AUDIO CHAIN — louder perceived level without the painful crack/pop peaks.
+    // V21 MUSIC-BOOST AUDIO CHAIN — much louder music while retaining peak control and soft transients.
     // Two-stage dynamics control + warmer low-pass. No waveshaper/distortion is used.
     const masterFilter=ctx.createBiquadFilter();
     masterFilter.type="lowpass";masterFilter.frequency.value=5000;masterFilter.Q.value=.08;
 
     const busCompressor=ctx.createDynamicsCompressor();
-    busCompressor.threshold.value=-23;busCompressor.knee.value=28;busCompressor.ratio.value=5;busCompressor.attack.value=.018;busCompressor.release.value=.32;
+    busCompressor.threshold.value=-12;busCompressor.knee.value=18;busCompressor.ratio.value=2.6;busCompressor.attack.value=.020;busCompressor.release.value=.24;
 
     const limiter=ctx.createDynamicsCompressor();
-    limiter.threshold.value=-7;limiter.knee.value=2;limiter.ratio.value=20;limiter.attack.value=.002;limiter.release.value=.14;
+    limiter.threshold.value=-2.5;limiter.knee.value=1;limiter.ratio.value=20;limiter.attack.value=.003;limiter.release.value=.12;
 
-    const master=ctx.createGain();master.gain.value=state.soundEnabled?.86:0;
+    const master=ctx.createGain();master.gain.value=state.soundEnabled?1.08:0;
     const music=ctx.createGain();music.gain.value=0;
-    const musicFilter=ctx.createBiquadFilter();musicFilter.type="lowpass";musicFilter.frequency.value=4700;musicFilter.Q.value=.08;
-    const sfx=ctx.createGain();sfx.gain.value=.92;
+    const musicFilter=ctx.createBiquadFilter();musicFilter.type="lowpass";musicFilter.frequency.value=5200;musicFilter.Q.value=.05;
+    const sfx=ctx.createGain();sfx.gain.value=1.08;
     const sfxFilter=ctx.createBiquadFilter();sfxFilter.type="lowpass";sfxFilter.frequency.value=4800;sfxFilter.Q.value=.06;
 
     music.connect(musicFilter);musicFilter.connect(busCompressor);
@@ -920,13 +920,13 @@ function playCleanGuitar(root,when,accent=1,pan=0){
   if(!state.audio?.ctx||!state.audio?.music)return;
   const {ctx,music}=state.audio;
   const bus=ctx.createGain(),filter=ctx.createBiquadFilter(),delay=ctx.createDelay(.35),feedback=ctx.createGain();
-  bus.gain.value=.82*accent;filter.type='lowpass';filter.frequency.setValueAtTime(3400,when);filter.frequency.exponentialRampToValueAtTime(1550,when+.38);filter.Q.value=.10;
+  bus.gain.value=1.20*accent;filter.type='lowpass';filter.frequency.setValueAtTime(3400,when);filter.frequency.exponentialRampToValueAtTime(1550,when+.38);filter.Q.value=.10;
   delay.delayTime.value=.135;feedback.gain.value=.10;
   bus.connect(filter);connectWithPan(filter,music,pan);filter.connect(delay);delay.connect(feedback);feedback.connect(delay);delay.connect(music);
   [1,1.4983,2,2.9966].forEach((ratio,i)=>{
     const osc=ctx.createOscillator(),g=ctx.createGain();
     osc.type=i<2?'triangle':'sine';osc.frequency.value=root*ratio;osc.detune.value=(i-1.5)*1.6;
-    const peak=[.062,.027,.014,.006][i]*accent;
+    const peak=[.115,.050,.025,.010][i]*accent;
     g.gain.setValueAtTime(.0001,when);g.gain.linearRampToValueAtTime(peak,when+.022+i*.004);g.gain.exponentialRampToValueAtTime(.0001,when+.38+i*.040);
     osc.connect(g);g.connect(bus);osc.start(when);osc.stop(when+.48);
   });
@@ -934,10 +934,10 @@ function playCleanGuitar(root,when,accent=1,pan=0){
 function playPianoPluck(freq,when,accent=1,pan=0){
   if(!state.audio?.ctx||!state.audio?.music)return;
   const {ctx,music}=state.audio;const bus=ctx.createGain(),filter=ctx.createBiquadFilter();
-  filter.type='lowpass';filter.frequency.value=3800;filter.Q.value=.08;bus.gain.value=.88*accent;bus.connect(filter);connectWithPan(filter,music,pan);
+  filter.type='lowpass';filter.frequency.value=4100;filter.Q.value=.06;bus.gain.value=1.18*accent;bus.connect(filter);connectWithPan(filter,music,pan);
   [1,2,3.01].forEach((ratio,i)=>{
     const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq*ratio;
-    const peak=[.062,.014,.004][i]*accent;
+    const peak=[.105,.024,.007][i]*accent;
     gain.gain.setValueAtTime(.0001,when);gain.gain.linearRampToValueAtTime(peak,when+.020);gain.gain.exponentialRampToValueAtTime(.0001,when+.48+(i*.09));
     osc.connect(gain);gain.connect(bus);osc.start(when);osc.stop(when+.65);
   });
@@ -945,14 +945,14 @@ function playPianoPluck(freq,when,accent=1,pan=0){
 function playSoftBass(freq,when,accent=1){
   const {ctx,music}=state.audio;const osc=ctx.createOscillator(),sub=ctx.createOscillator(),gain=ctx.createGain(),subGain=ctx.createGain(),filter=ctx.createBiquadFilter();
   osc.type='triangle';sub.type='sine';osc.frequency.value=freq;sub.frequency.value=freq/2;filter.type='lowpass';filter.frequency.value=560;filter.Q.value=.45;
-  gain.gain.setValueAtTime(.0001,when);gain.gain.linearRampToValueAtTime(.070*accent,when+.025);gain.gain.exponentialRampToValueAtTime(.0001,when+.38);
-  subGain.gain.setValueAtTime(.0001,when);subGain.gain.linearRampToValueAtTime(.020*accent,when+.028);subGain.gain.exponentialRampToValueAtTime(.0001,when+.34);
+  gain.gain.setValueAtTime(.0001,when);gain.gain.linearRampToValueAtTime(.115*accent,when+.025);gain.gain.exponentialRampToValueAtTime(.0001,when+.38);
+  subGain.gain.setValueAtTime(.0001,when);subGain.gain.linearRampToValueAtTime(.034*accent,when+.028);subGain.gain.exponentialRampToValueAtTime(.0001,when+.34);
   osc.connect(gain);sub.connect(subGain);gain.connect(filter);subGain.connect(filter);filter.connect(music);osc.start(when);sub.start(when);osc.stop(when+.38);sub.stop(when+.34);
 }
 function playSoftKick(when,accent=1){
   const {ctx,music}=state.audio;const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
   osc.type='sine';osc.frequency.setValueAtTime(92,when);osc.frequency.exponentialRampToValueAtTime(48,when+.13);filter.type='lowpass';filter.frequency.value=850;
-  gain.gain.setValueAtTime(.0001,when);gain.gain.linearRampToValueAtTime(.082*accent,when+.022);gain.gain.exponentialRampToValueAtTime(.0001,when+.22);
+  gain.gain.setValueAtTime(.0001,when);gain.gain.linearRampToValueAtTime(.118*accent,when+.022);gain.gain.exponentialRampToValueAtTime(.0001,when+.22);
   osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.20);
 }
 function playSoftDrum(when,type='hat',accent=1){
@@ -963,15 +963,15 @@ function playSoftDrum(when,type='hat',accent=1){
     body.type='sine';body.frequency.setValueAtTime(185,when);body.frequency.exponentialRampToValueAtTime(145,when+.14);
     snap.type='triangle';snap.frequency.setValueAtTime(620,when);snap.frequency.exponentialRampToValueAtTime(390,when+.12);
     filter.type='lowpass';filter.frequency.value=2400;filter.Q.value=.05;
-    bodyGain.gain.setValueAtTime(.0001,when);bodyGain.gain.linearRampToValueAtTime(.034*accent,when+.018);bodyGain.gain.exponentialRampToValueAtTime(.0001,when+.17);
-    snapGain.gain.setValueAtTime(.0001,when);snapGain.gain.linearRampToValueAtTime(.013*accent,when+.022);snapGain.gain.exponentialRampToValueAtTime(.0001,when+.11);
+    bodyGain.gain.setValueAtTime(.0001,when);bodyGain.gain.linearRampToValueAtTime(.052*accent,when+.018);bodyGain.gain.exponentialRampToValueAtTime(.0001,when+.17);
+    snapGain.gain.setValueAtTime(.0001,when);snapGain.gain.linearRampToValueAtTime(.017*accent,when+.022);snapGain.gain.exponentialRampToValueAtTime(.0001,when+.11);
     body.connect(bodyGain);snap.connect(snapGain);bodyGain.connect(filter);snapGain.connect(filter);filter.connect(music);
     body.start(when);snap.start(when);body.stop(when+.19);snap.stop(when+.14);
     return;
   }
   const hat=ctx.createOscillator(),hatGain=ctx.createGain(),hp=ctx.createBiquadFilter();
   hat.type='triangle';hat.frequency.value=1450;hp.type='highpass';hp.frequency.value=900;hp.Q.value=.04;
-  hatGain.gain.setValueAtTime(.0001,when);hatGain.gain.linearRampToValueAtTime(.0065*accent,when+.012);hatGain.gain.exponentialRampToValueAtTime(.0001,when+.070);
+  hatGain.gain.setValueAtTime(.0001,when);hatGain.gain.linearRampToValueAtTime(.0050*accent,when+.012);hatGain.gain.exponentialRampToValueAtTime(.0001,when+.070);
   hat.connect(hp);hp.connect(hatGain);hatGain.connect(music);hat.start(when);hat.stop(when+.07);
 }
 function scheduleMusicStep(step,when){
@@ -992,7 +992,7 @@ async function startAmbientMusic(){
   if(!await resumeAudio()){state.musicStarting=false;return;}
   const {ctx,music}=state.audio;
   state.audioStarted=true;state.musicStarting=false;state.musicStep=0;state.musicNextTime=ctx.currentTime+.06;
-  audioRamp(music.gain,.92,1.2);
+  audioRamp(music.gain,1.72,.85);
   clearInterval(state.musicTimer);
   const stepDuration=(60/128)/2; // 128 BPM, eighth-note scheduler
   const scheduler=()=>{
@@ -1011,7 +1011,7 @@ async function attemptAutoStartMusic(){
 async function setSoundEnabled(enabled){
   state.soundEnabled=!!enabled;localStorage.setItem("colorMeSound",state.soundEnabled?"on":"off");
   if(!ensureAudio()){updateSoundButton();return;}
-  if(state.soundEnabled){await resumeAudio();audioRamp(state.audio.master.gain,.86,.30);await startAmbientMusic();}
+  if(state.soundEnabled){await resumeAudio();audioRamp(state.audio.master.gain,1.08,.24);audioRamp(state.audio.music.gain,1.72,.35);await startAmbientMusic();}
   else audioRamp(state.audio.master.gain,0,.18);
   updateSoundButton();
 }
