@@ -160,7 +160,7 @@ async function checkDuplicateAndSave(result){
     sessionId,
     sessionName:state.activeSession?.name||"Open session",
     consent:true,
-    version:"6.0.0"
+    version:"7.0.0"
   };
 
   if(state.firebaseReady){
@@ -190,20 +190,66 @@ async function checkDuplicateAndSave(result){
     return true;
   }
 }
+let revealTimer=null;
+function stopRevealAnimation(){
+  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
+}
 function renderReveal(){
-  $("#revealWords").innerHTML=state.result.selectedWords.map((w,i)=>`<span style="animation-delay:${i*.14}s">${escapeHtml(w)}</span>`).join("");
+  stopRevealAnimation();
+  const words=state.result?.selectedWords||[];
+  const positions=[
+    {x:18,y:23},{x:82,y:23},{x:14,y:72},{x:86,y:72},{x:50,y:10}
+  ];
+  const nodes=$("#analysisWordNodes"), lines=$("#analysisLines");
+  if(!nodes||!lines)return;
+  nodes.innerHTML=words.map((w,i)=>`<span class="analysis-word-node" data-analysis-node="${i}" style="left:${positions[i].x}%;top:${positions[i].y}%">${escapeHtml(w)}</span>`).join("");
+  lines.innerHTML=words.map((w,i)=>`<line class="analysis-line" data-analysis-line="${i}" x1="50" y1="52" x2="${positions[i].x}" y2="${positions[i].y}"></line>`).join("");
+  const current=$("#analysisCurrentWord"), status=$("#analysisStatus"), bar=$("#analysisProgressBar"), progressText=$("#analysisProgressText");
+  let step=-1,cycle=0;
+  const messages=[
+    "กำลังตรวจจับรูปแบบของคำที่เลือก...",
+    "กำลังเชื่อมโยงความหมายและพฤติกรรม...",
+    "กำลังเปรียบเทียบมิติ THINK · FIGHT · FINE · DO...",
+    "กำลังคำนวณลายเซ็นความเป็นคุณ..."
+  ];
+  const pulse=()=>{
+    step=(step+1)%Math.max(words.length,1);cycle++;
+    document.querySelectorAll("[data-analysis-node]").forEach((n,i)=>n.classList.toggle("active",i===step));
+    document.querySelectorAll("[data-analysis-line]").forEach((n,i)=>n.classList.toggle("active",i===step));
+    if(current)current.textContent=words[step]||"—";
+    const pct=Math.min(94,8+cycle*11);
+    if(bar)bar.style.width=`${pct}%`;
+    if(progressText)progressText.textContent=`${pct}%`;
+    if(status)status.textContent=messages[Math.min(messages.length-1,Math.floor(cycle/2))];
+  };
+  pulse();
+  revealTimer=setInterval(pulse,440);
+}
+function finishReveal(){
+  stopRevealAnimation();
+  document.querySelectorAll("[data-analysis-node]").forEach(n=>n.classList.add("active"));
+  document.querySelectorAll("[data-analysis-line]").forEach(n=>n.classList.add("active"));
+  const bar=$("#analysisProgressBar"),txt=$("#analysisProgressText"),status=$("#analysisStatus"),current=$("#analysisCurrentWord");
+  if(bar)bar.style.width="100%";
+  if(txt)txt.textContent="100%";
+  if(status)status.textContent="วิเคราะห์เสร็จแล้ว กำลังเปิดลายเซ็นความเป็นคุณ...";
+  if(current)current.textContent="COMPLETE";
 }
 function communicationCards(primary){
   return COLORS.map(k=>`<div class="comm-item"><b style="color:${META()[k].color}">${META()[k].label}</b><p>${COMMUNICATION[primary][k]}</p></div>`).join("");
 }
 function renderResult(){
   const r=state.result,p=META()[r.dominant],s=META()[r.secondary];
+  $("#resultPersonName").textContent=state.profile.fullName||"ผู้เข้าร่วม";
+  const meta=[state.profile.organization,state.activeSession?.name].filter(Boolean).join(" · ");
+  $("#resultPersonMeta").textContent=meta||"COLOR ME participant";
   $("#resultTitle").textContent=p.title;$("#resultTitle").style.color=p.color;
-  $("#resultSubtitle").textContent=`สีรองของคุณคือ ${s.label} · ${s.thai} — เมื่อสองพลังนี้อยู่ด้วยกัน คุณจึงมีสไตล์เฉพาะตัวที่ทั้ง ${p.thai} และ ${s.thai} ในแบบของคุณ`;
+  $("#resultSubtitle").textContent=`พลังรอง ${s.label} · ${s.thai} ช่วยเสริมให้สไตล์ของคุณมีทั้ง ${p.thai} และ ${s.thai} ในแบบเฉพาะตัว`;
   $("#resultScorePills").innerHTML=COLORS.map(k=>`<span class="score-pill"><b style="color:${META()[k].color}">${META()[k].label}</b> ${r.scores[k]}%</span>`).join("");
   $("#resultWords").innerHTML=r.selectedWords.map(w=>`<span class="result-word">${escapeHtml(w)}</span>`).join("");
   $("#insightContent").innerHTML=`<div class="insight-block"><h4>✦ จุดแข็งที่เด่น</h4><p>${p.strength}</p></div><div class="insight-block"><h4>✦ เวลาทำงานกับทีม</h4><p>${p.teamwork}</p></div><div class="insight-block"><h4>✦ พลังเสริมจาก ${s.label}</h4><p>${s.strength}</p></div><div class="insight-block"><h4>✦ จุดที่ควรระวัง</h4><p>${p.watch}</p></div>`;
-  $("#communicationGrid").innerHTML=communicationCards(r.dominant);drawRadar("resultRadar",r.scores,"result");
+  $("#communicationGrid").innerHTML=communicationCards(r.dominant);
+  drawRadar("resultRadar",r.scores,"result");
 }
 function radarData(scores,label="พลัง"){
   return{labels:["THINK · คิด","FIGHT · ลุย","FINE · ละเอียด","DO · ทำ"],datasets:[{label,data:[scores.think,scores.fight,scores.fine,scores.do],borderWidth:2,pointRadius:4,fill:true,backgroundColor:"rgba(116,129,255,.20)",borderColor:"rgba(145,164,255,.95)",pointBackgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],pointBorderColor:"#07111f"}]};
@@ -339,8 +385,24 @@ function renderProjector(){
 }
 
 async function saveResultCard(){
-  const target=$("#shareCard");toast("กำลังสร้าง Result Card…");
-  try{const canvas=await html2canvas(target,{backgroundColor:"#07111f",scale:2,useCORS:true});const a=document.createElement("a");a.download=`color-me-${Date.now()}.png`;a.href=canvas.toDataURL("image/png");a.click();}catch(e){console.error(e);toast("สร้างภาพไม่สำเร็จ");}
+  const target=$("#shareCard");
+  toast("กำลังสร้าง Result Card แบบ 16:9…");
+  try{
+    target.classList.add("exporting");
+    charts.result?.resize?.();
+    await new Promise(r=>setTimeout(r,280));
+    const canvas=await html2canvas(target,{backgroundColor:"#06101c",scale:1.6,useCORS:true,logging:false,width:1600,height:900,windowWidth:1600,windowHeight:900});
+    const a=document.createElement("a");
+    const safeName=(state.profile.fullName||"color-me").replace(/[\/:*?"<>|]+/g,"-");
+    a.download=`COLOR-ME-${safeName}-${Date.now()}.png`;
+    a.href=canvas.toDataURL("image/png",1);
+    a.click();
+  }catch(e){
+    console.error(e);toast("สร้าง Result Card ไม่สำเร็จ");
+  }finally{
+    target.classList.remove("exporting");
+    charts.result?.resize?.();
+  }
 }
 
 function switchTab(name){$$(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));$$(".admin-tab-pane").forEach(p=>p.classList.toggle("active",p.id===`tab-${name}`));if(name==="teamdna")renderTeamDNA();}
@@ -349,7 +411,7 @@ function wireEvents(){
   $("#btnHow").addEventListener("click",()=>openModal("#modalHow"));$("#btnPrivacy").addEventListener("click",()=>openModal("#modalPrivacy"));$("#btnAdmin").addEventListener("click",()=>showScreen("#screenAdminLogin"));
   $$("[data-go-home]").forEach(b=>b.addEventListener("click",()=>showScreen("#screenHome")));$$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));$$(".modal-x").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));
   $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim(),email:$("#email").value.trim()};renderWords();showScreen("#screenWords");});
-  $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>{renderResult();showScreen("#screenResult");$("#btnAnalyze").disabled=false;},2800);});
+  $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>finishReveal(),3500);setTimeout(()=>{renderResult();showScreen("#screenResult");$("#btnAnalyze").disabled=false;},3900);});
   $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});$("#btnSaveImage").addEventListener("click",saveResultCard);
   $("#btnBackToProfile")?.addEventListener("click",()=>showScreen("#screenProfile"));$("#btnBackToProfileBottom")?.addEventListener("click",()=>showScreen("#screenProfile"));
 

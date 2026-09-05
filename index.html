@@ -122,47 +122,97 @@
     </section>
 
     <section id="screenReveal" class="screen">
-      <div class="reveal-stage">
-        <div class="reveal-orbit r1"></div><div class="reveal-orbit r2"></div><div class="reveal-orbit r3"></div>
-        <div class="reveal-wheel"><div class="reveal-core">กำลังประกอบ<br><b>Color Signature</b></div></div>
-        <div id="revealWords" class="reveal-words"></div>
+      <div class="analysis-stage">
+        <div class="analysis-heading">
+          <span class="eyebrow">SIGNATURE ANALYSIS ENGINE</span>
+          <h2>กำลังวิเคราะห์รูปแบบความเป็นคุณ</h2>
+          <p id="analysisStatus">เชื่อมโยงความหมายของ 5 คำที่คุณเลือก...</p>
+        </div>
+
+        <div id="analysisField" class="analysis-field">
+          <div class="analysis-grid-glow"></div>
+          <svg id="analysisLines" class="analysis-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+          <div class="scanner-ring sr-1"></div>
+          <div class="scanner-ring sr-2"></div>
+          <div class="scanner-ring sr-3"></div>
+          <div class="scanner-core-wrap">
+            <div class="scanner-sweep"></div>
+            <div class="scanner-core">
+              <small>กำลังตรวจจับรูปแบบ</small>
+              <b id="analysisCurrentWord">—</b>
+              <span>กำลังเปรียบเทียบความสัมพันธ์</span>
+            </div>
+          </div>
+
+          <div id="analysisWordNodes" class="analysis-word-nodes"></div>
+        </div>
+
+        <div class="analysis-progress-row">
+          <span>ANALYSIS PROGRESS</span>
+          <div class="analysis-progress"><i id="analysisProgressBar"></i></div>
+          <b id="analysisProgressText">0%</b>
+        </div>
       </div>
     </section>
 
     <section id="screenResult" class="screen">
-      <div id="shareCard">
-        <div class="result-hero">
-          <div class="result-badge">YOUR COLOR SIGNATURE</div>
-          <p class="result-kicker">พลังหลักของคุณคือ</p>
-          <h2 id="resultTitle">—</h2>
-          <p id="resultSubtitle" class="result-subtitle"></p>
-          <div id="resultScorePills" class="score-pills"></div>
+      <div id="shareCard" class="premium-result-card">
+        <div class="result-card-header">
+          <div class="result-person-block">
+            <span class="eyebrow">COLOR SIGNATURE RESULT</span>
+            <h2 id="resultPersonName">ผู้เข้าร่วม</h2>
+            <p id="resultPersonMeta">—</p>
+          </div>
+          <div class="result-main-block">
+            <span class="result-kicker">พลังหลักของคุณคือ</span>
+            <h1 id="resultTitle">—</h1>
+            <p id="resultSubtitle" class="result-subtitle"></p>
+          </div>
+          <div id="resultScorePills" class="score-pills result-score-pills"></div>
         </div>
 
-        <div class="result-grid">
-          <article class="panel chart-card">
-            <div class="card-head"><div><span class="eyebrow">YOUR RADAR</span><h3>กราฟพลัง 4 สี</h3></div><span class="mini-tag">0–100%</span></div>
-            <div class="chart-wrap"><canvas id="resultRadar"></canvas></div>
+        <div class="result-dashboard-grid">
+          <article class="panel result-panel result-radar-panel">
+            <div class="card-head compact-head">
+              <div><span class="eyebrow">YOUR RADAR</span><h3>กราฟพลัง 4 สี</h3></div>
+              <span class="mini-tag">0–100%</span>
+            </div>
+            <div class="chart-wrap result-chart-wrap"><canvas id="resultRadar"></canvas></div>
           </article>
-          <article class="panel insight-card">
-            <div class="card-head"><div><span class="eyebrow">PERSONAL INSIGHT</span><h3>ลายเซ็นความเป็นคุณ</h3></div></div>
-            <div id="insightContent"></div>
+
+          <article class="panel result-panel result-insight-panel">
+            <div class="card-head compact-head">
+              <div><span class="eyebrow">PERSONAL INSIGHT</span><h3>ลายเซ็นความเป็นคุณ</h3></div>
+            </div>
+            <div id="insightContent" class="compact-insights"></div>
+          </article>
+
+          <article class="panel result-panel result-comm-panel">
+            <div class="card-head compact-head">
+              <div><span class="eyebrow">COMMUNICATION GUIDE</span><h3>ควรสื่อสารอย่างไร</h3></div>
+            </div>
+            <div id="communicationGrid" class="communication-grid compact-communication"></div>
           </article>
         </div>
 
-        <div class="panel selected-summary"><div><span class="eyebrow">YOUR 5 WORDS</span><h3>5 คำที่คุณเลือก</h3></div><div id="resultWords" class="result-words"></div></div>
-        <div class="panel communication-card">
-          <span class="eyebrow">COMMUNICATION GUIDE</span>
-          <h3>คุณควรสื่อสารกับแต่ละสีอย่างไร</h3>
-          <div id="communicationGrid" class="communication-grid"></div>
+        <div class="result-card-footer">
+          <div class="result-word-area">
+            <span class="eyebrow">YOUR 5 WORDS</span>
+            <div id="resultWords" class="result-words"></div>
+          </div>
+          <div class="result-brand-signature">
+            <b>COLOR ME</b>
+            <span>5 WORDS · 4 COLORS</span>
+          </div>
         </div>
       </div>
 
-      <div class="result-actions">
+      <div class="result-actions compact-result-actions">
         <button id="btnSaveImage" class="btn btn-primary" type="button">สร้าง Result Card</button>
         <button id="btnRestart" class="btn btn-ghost" type="button">ทำอีกครั้ง</button>
       </div>
-      <p class="disclaimer">หมายเหตุ: กิจกรรมนี้เป็นเครื่องมือสะท้อนตัวตนเพื่อการเรียนรู้และการทำงานร่วมกัน ไม่ใช่แบบทดสอบทางจิตวิทยาหรือการวินิจฉัยบุคลิกภาพมาตรฐาน</p>
+      <p class="disclaimer result-disclaimer">กิจกรรมนี้เป็นเครื่องมือสะท้อนตัวตนเพื่อการเรียนรู้และการทำงานร่วมกัน ไม่ใช่แบบทดสอบทางจิตวิทยามาตรฐาน</p>
     </section>
 
     <section id="screenAdminLogin" class="screen">
