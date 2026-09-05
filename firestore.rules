@@ -24,9 +24,9 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Response document id is deterministic from session + participant code.
-    // Because update is denied to participants, the same code cannot overwrite
-    // an existing response in the same session.
+    // Response document id is deterministic from session + normalized name + organization.
+    // Participants may create a response but cannot overwrite an existing response,
+    // so the same person cannot submit twice in the same session.
     match /responses/{responseId} {
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid

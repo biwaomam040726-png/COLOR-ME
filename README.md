@@ -1,4 +1,4 @@
-# COLOR ME V5 — เกมรู้จักตัวเองผ่าน 5 คำ
+# COLOR ME V6 — เกมรู้จักตัวเองผ่าน 5 คำ
 
 Static Web App สำหรับ **GitHub Pages + Firebase Authentication + Cloud Firestore**
 
@@ -310,3 +310,11 @@ biwaomam040726-png.github.io
 - เพิ่มปุ่มกลับในหน้าเลือกคำ
 - UI ปรับเป็น corporate premium: คอมโพเนนต์นิ่งขึ้น แต่ ambient wave/background motion ชัดขึ้น
 - อัปเดต firestore.rules ให้รองรับโครงสร้างใหม่
+
+
+## V6 — Blind selection + shared-device fix
+- ตอนเลือกคำ ทุกคำใช้สีเดียวกัน ไม่เปิดเผยว่าแต่ละคำอยู่ใน THINK/FIGHT/FINE/DO
+- ยกเลิกการล็อกแบบ 1 อุปกรณ์ต่อ Session
+- ป้องกันซ้ำด้วย Session + ชื่อ–นามสกุล + หน่วยงาน/กลุ่ม
+- คอมเครื่องเดียวสามารถให้ผู้เข้าร่วมหลายคนทำต่อกันได้
+- คนเดิมใน Session เดิมยังส่งซ้ำไม่ได้ เพื่อไม่ให้ข้อมูล Dashboard ซ้ำ

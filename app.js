@@ -120,7 +120,7 @@ async function resolveSession(){
 }
 function renderWords(){
   const cloud=$("#wordCloud");if(!cloud)return;
-  cloud.innerHTML=WORDS().map((w,i)=>`<button type="button" class="word-card" data-id="${w.id}" data-color="${w.primary}" style="animation:fadeUp .45s ease ${i*.02}s both">${escapeHtml(w.text)}</button>`).join("");
+  cloud.innerHTML=WORDS().map((w,i)=>`<button type="button" class="word-card" data-id="${w.id}" style="animation:fadeUp .45s ease ${i*.02}s both">${escapeHtml(w.text)}</button>`).join("");
   cloud.querySelectorAll(".word-card").forEach(b=>b.addEventListener("click",()=>toggleWord(Number(b.dataset.id))));
   syncWordUI();
 }
@@ -137,23 +137,57 @@ function analyze(){
 async function checkDuplicateAndSave(result){
   const sessionId=state.activeSession?.id||"open";
   if(state.firebaseReady && !fb.auth.currentUser) await ensureAnon();
-  const identity=state.firebaseReady?(fb.auth.currentUser?.uid||getDeviceId()):getDeviceId();
+
+  // ป้องกันซ้ำแบบ "คนเดิมในรอบเดิม" แทนการล็อกทั้งอุปกรณ์
+  // ทำให้คอม/แท็บเล็ตเครื่องเดียวสามารถให้หลายคนทำต่อกันได้
+  const normalizeIdentity=(value="")=>String(value)
+    .trim()
+    .toLocaleLowerCase("th-TH")
+    .replace(/\s+/g," ");
+  const nameKey=normalizeIdentity(state.profile.fullName);
+  const orgKey=normalizeIdentity(state.profile.organization||"");
+  const identity=`${nameKey}|${orgKey}`;
   const responseId=await sha256(`${sessionId}|${identity}`);
-  const payload={fullName:state.profile.fullName,organization:state.profile.organization||"",email:state.profile.email||"",selectedWords:result.selectedWords,scores:result.scores,dominant:result.dominant,secondary:result.secondary,sessionId,sessionName:state.activeSession?.name||"Open session",consent:true,version:"5.0.0"};
+
+  const payload={
+    fullName:state.profile.fullName,
+    organization:state.profile.organization||"",
+    email:state.profile.email||"",
+    selectedWords:result.selectedWords,
+    scores:result.scores,
+    dominant:result.dominant,
+    secondary:result.secondary,
+    sessionId,
+    sessionName:state.activeSession?.name||"Open session",
+    consent:true,
+    version:"6.0.0"
+  };
+
   if(state.firebaseReady){
-    const {doc,setDoc,serverTimestamp}=fb.fsFns;try{
+    const {doc,setDoc,serverTimestamp}=fb.fsFns;
+    try{
       if(!fb.auth.currentUser)await ensureAnon();
-      await setDoc(doc(fb.db,"responses",responseId),{...payload,uid:fb.auth.currentUser.uid,createdAt:serverTimestamp()});
+      await setDoc(doc(fb.db,"responses",responseId),{
+        ...payload,
+        uid:fb.auth.currentUser.uid,
+        createdAt:serverTimestamp()
+      });
       return true;
     }catch(e){
       console.error(e);
-      if(String(e.code||"").includes("permission-denied"))throw new Error("อุปกรณ์นี้ส่งคำตอบใน Session นี้แล้ว หรือ Session ปิดรับคำตอบ");
+      if(String(e.code||"").includes("permission-denied")){
+        throw new Error("ชื่อนี้ส่งคำตอบในรอบกิจกรรมนี้แล้ว หรือรอบกิจกรรมปิดรับคำตอบ");
+      }
       throw new Error("บันทึกข้อมูลไม่สำเร็จ");
     }
   }else{
     const arr=JSON.parse(localStorage.getItem("talentColorDemoResponses")||"[]");
-    if(arr.some(r=>r.id===responseId))throw new Error("อุปกรณ์นี้ส่งคำตอบใน Session นี้แล้ว");
-    arr.push({...payload,id:responseId,createdAt:new Date().toISOString()});localStorage.setItem("talentColorDemoResponses",JSON.stringify(arr));return true;
+    if(arr.some(r=>r.id===responseId)){
+      throw new Error("ชื่อนี้ส่งคำตอบในรอบกิจกรรมนี้แล้ว");
+    }
+    arr.push({...payload,id:responseId,createdAt:new Date().toISOString()});
+    localStorage.setItem("talentColorDemoResponses",JSON.stringify(arr));
+    return true;
   }
 }
 function renderReveal(){
