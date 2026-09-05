@@ -1,0 +1,15 @@
+COLOR ME V3 — DEPLOY CHECKLIST
+
+[ ] 1. ลบไฟล์เก่าใน GitHub Repository หรืออัปโหลดชุดนี้ทับทั้งหมด
+[ ] 2. ตรวจว่า firebase-config.js มี projectId = color-me-aaf03
+[ ] 3. Firestore Rules ใช้ไฟล์ firestore.rules ชุดนี้และกด Publish
+[ ] 4. Authentication: Anonymous = Enabled
+[ ] 5. Authentication: Email/Password = Enabled
+[ ] 6. Authentication > Settings > Authorized domains:
+      biwaomam040726-png.github.io
+[ ] 7. Firestore มี collection admins
+[ ] 8. Document ID ใน admins ต้องตรงกับ User UID ของ Admin
+[ ] 9. GitHub Pages = main / root
+[ ] 10. เปิดหน้าเว็บและ Ctrl + F5
+[ ] 11. ป้าย DEMO ต้องหาย
+[ ] 12. Login Admin > สร้าง Session > QR > ทดสอบผู้เข้าร่วม

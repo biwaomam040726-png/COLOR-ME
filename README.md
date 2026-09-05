@@ -1,4 +1,4 @@
-# COLOR ME V2 — เกมรู้จักตัวเองผ่าน 5 คำ
+# COLOR ME V3 — เกมรู้จักตัวเองผ่าน 5 คำ
 
 Static Web App สำหรับ **GitHub Pages + Firebase Authentication + Cloud Firestore**
 
@@ -247,3 +247,50 @@ Admin > Privacy
 ระบบนี้เป็นเครื่องมือ Self-reflection / Team learning ไม่ใช่แบบทดสอบ MBTI จริง และไม่ใช่เครื่องมือวินิจฉัยทางจิตวิทยา
 
 หากต้องการใช้ในงานวิจัยหรือการประเมินบุคลิกภาพเชิงวิชาการ ควรพัฒนาข้อคำถาม ตรวจสอบ validity / reliability และกำหนด scoring model ตามระเบียบวิธีวิจัย
+
+
+---
+
+# GitHub Pages — สำคัญมากสำหรับชุดนี้
+
+ให้อัปโหลดไฟล์ **ทั้งหมดที่อยู่ใน ZIP นี้โดยตรงไว้ที่ root ของ Repository**
+ไม่ต้องสร้างโฟลเดอร์ซ้อน
+
+หน้า Repository ต้องเห็นไฟล์เหล่านี้ทันที:
+
+```text
+404.html
+README.md
+app.js
+firebase-config.js
+firestore.rules
+index.html
+styles.css
+```
+
+หลังอัปโหลด:
+1. Settings > Pages
+2. Deploy from a branch
+3. Branch = main
+4. Folder = / (root)
+5. Save
+6. รอ Deploy แล้วกด Ctrl + F5
+
+## Firebase Authorized domains
+
+Firebase Console > Authentication > Settings > Authorized domains
+
+เพิ่ม:
+
+```text
+biwaomam040726-png.github.io
+```
+
+ไม่ต้องใส่ `https://` และไม่ต้องใส่ `/COLOR-ME/`
+
+## ตรวจว่าเว็บเชื่อม Firebase จริง
+
+เมื่อเปิดเว็บแล้ว:
+- ป้าย `DEMO` ต้องไม่แสดง
+- หน้า Admin ต้องไม่ขึ้น `ยังไม่ได้ตั้งค่า Firebase`
+- Login Admin ต้องใช้บัญชีจาก Firebase Authentication

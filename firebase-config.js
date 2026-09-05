@@ -1,13 +1,9 @@
-// 1) ไปที่ Firebase Console > Project settings > Your apps > Web app
-// 2) คัดลอกค่า firebaseConfig มาแทนที่ด้านล่าง
-// 3) เปิด Authentication: Anonymous + Email/Password
-// 4) สร้าง Firestore Database และวางกฎจากไฟล์ firestore.rules
-
 export const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  storageBucket: "PASTE_YOUR_PROJECT.firebasestorage.app",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId: "PASTE_YOUR_APP_ID"
+  apiKey: "AIzaSyAbc1fCXtxZQahCwGBK2RhS3n9XSLzs_p8",
+  authDomain: "color-me-aaf03.firebaseapp.com",
+  projectId: "color-me-aaf03",
+  storageBucket: "color-me-aaf03.firebasestorage.app",
+  messagingSenderId: "153303139139",
+  appId: "1:153303139139:web:3b6bcdb1f6ccdcaabb25f6",
+  measurementId: "G-MS5NJ6JQGN"
 };

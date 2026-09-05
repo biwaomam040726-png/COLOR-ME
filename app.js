@@ -133,7 +133,7 @@ async function checkDuplicateAndSave(result){
   const sessionId=state.activeSession?.id||"open";
   const code=slug(state.profile.participantCode);
   const responseId=await sha256(`${sessionId}|${code}`);
-  const payload={fullName:state.profile.fullName,organization:state.profile.organization||"",participantCode:state.profile.participantCode||"",email:state.profile.email||"",selectedWords:result.selectedWords,scores:result.scores,dominant:result.dominant,secondary:result.secondary,sessionId,sessionName:state.activeSession?.name||"Open session",consent:true,version:"2.0.0"};
+  const payload={fullName:state.profile.fullName,organization:state.profile.organization||"",participantCode:state.profile.participantCode||"",email:state.profile.email||"",selectedWords:result.selectedWords,scores:result.scores,dominant:result.dominant,secondary:result.secondary,sessionId,sessionName:state.activeSession?.name||"Open session",consent:true,version:"3.0.0"};
   if(state.firebaseReady){
     const {doc,setDoc,serverTimestamp}=fb.fsFns;try{
       if(!fb.auth.currentUser)await ensureAnon();
