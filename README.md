@@ -1,3 +1,14 @@
+# COLOR ME Premium
+
+## V16 — Exciting Sound + Analysis SFX + Smooth Projec Display
+
+- ปรับเสียงปุ่มให้สนุกและมีพลังขึ้นแบบ multi-tone + sparkle
+- Ambient music เพิ่ม arpeggio เบา ๆ ให้บรรยากาศมีจังหวะมากขึ้น
+- เพิ่มเสียงวิเคราะห์: scan sweep, pulse ตามคำ, completion chord
+- ใน Projec Display เมื่อมีคำตอบใหม่จาก Firebase จะมีเสียงแจ้งเตือน + toast + highlight รายชื่อใหม่
+- แก้กราฟใน Projec Display ไม่ให้กระพริบ: reuse Chart instance, อัปเดตข้อมูลแบบ no-animation และให้ pulse/sweep animation เคลื่อนไหวต่อเนื่อง
+- เอาการ re-render กราฟทุก 5 วินาทีออก เหลืออัปเดตกราฟเมื่อข้อมูลเปลี่ยนจริง ส่วนเวลาอัปเดตทุก 1 วินาที
+
 
 ## V15 — Premium Audio + Mobile UX
 

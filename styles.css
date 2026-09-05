@@ -743,3 +743,14 @@ table th.col-check, table td.col-check{text-align:center}
   .form-panel,.word-panel{padding:14px}.sticky-head{margin:-14px -14px 4px;padding:15px 14px 12px}.step-head h2{font-size:27px}.pick-meter{width:58px;height:58px}.word-card{font-size:12px;padding:9px 13px}
   .result-main-block h1{font-size:35px}.color-mix-legend{grid-template-columns:1fr}
 }
+
+/* ===== V16 exciting audio + no-flicker projector ===== */
+.projector-new-data-toast{position:fixed;top:24px;left:50%;transform:translate(-50%,-18px) scale(.96);z-index:120;display:flex;align-items:center;gap:12px;min-width:320px;max-width:min(92vw,620px);padding:14px 18px;border-radius:20px;border:1px solid rgba(102,224,190,.28);background:linear-gradient(135deg,rgba(10,30,48,.96),rgba(18,25,54,.96));box-shadow:0 24px 80px rgba(0,0,0,.42),0 0 40px rgba(75,224,190,.13);opacity:0;pointer-events:none;transition:opacity .28s ease,transform .4s cubic-bezier(.2,.8,.2,1)}
+.projector-new-data-toast.show{opacity:1;transform:translate(-50%,0) scale(1)}
+.projector-new-data-toast .new-data-icon{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:20px;color:#08131f;background:linear-gradient(135deg,#6cf1c5,#73a9ff);box-shadow:0 0 0 7px rgba(108,241,197,.08),0 0 28px rgba(108,241,197,.35);animation:newDataIconPulse 1.1s ease-in-out infinite}
+.projector-new-data-toast b{display:block;font-family:"Kanit";font-size:18px;color:#fff;line-height:1.1}.projector-new-data-toast small{display:block;margin-top:4px;color:#a9bfd5;font-size:12px}
+@keyframes newDataIconPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 7px rgba(108,241,197,.07),0 0 28px rgba(108,241,197,.28)}50%{transform:scale(1.08);box-shadow:0 0 0 12px rgba(108,241,197,0),0 0 42px rgba(108,241,197,.45)}}
+.projector-participant-card.is-new{border-color:rgba(89,235,191,.45)!important;background:linear-gradient(135deg,rgba(60,222,180,.14),rgba(80,130,255,.08))!important;box-shadow:0 0 0 1px rgba(89,235,191,.12) inset,0 0 34px rgba(61,220,176,.13);animation:newParticipantGlow 1.2s ease-in-out 3}
+@keyframes newParticipantGlow{0%,100%{transform:translateX(0);filter:brightness(1)}50%{transform:translateX(3px);filter:brightness(1.12)}}
+.projector .chart-wrap,.projector .proj-chart{backface-visibility:hidden;transform:translateZ(0)}
+@media(max-width:700px){.projector-new-data-toast{top:max(12px,env(safe-area-inset-top));min-width:0;width:calc(100vw - 28px);padding:12px 14px;border-radius:16px}.projector-new-data-toast .new-data-icon{width:36px;height:36px}}
