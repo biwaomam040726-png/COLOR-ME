@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <meta name="description" content="เกมค้นหาสไตล์ความเป็นตัวเรา เลือก 5 คำ แล้วดูผล 4 สีพร้อมกราฟใยแมงมุม" />
+  <title>COLOR ME — รู้จักตัวเองผ่าน 5 คำ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <div id="aurora" class="aurora" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="brand-mark" aria-hidden="true">
+        <i class="c c-blue"></i><i class="c c-red"></i><i class="c c-yellow"></i><i class="c c-green"></i>
+      </span>
+      <span>
+        <b>COLOR ME</b>
+        <small>5 WORDS · 4 COLORS</small>
+      </span>
+    </a>
+    <div class="top-actions">
+      <span id="modeBadge" class="mode-badge hidden">DEMO</span>
+      <button id="btnAdmin" class="btn btn-ghost btn-sm" type="button">สำหรับผู้ดูแล</button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section id="screenHome" class="screen active">
+      <div class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">SELF DISCOVERY EXPERIENCE</span>
+          <h1>รู้จักตัวเอง<br><span>ผ่าน 5 คำ</span></h1>
+          <p>
+            เลือกคำที่ “ตรงกับความเป็นเรา” มากที่สุด 5 คำ
+            แล้วระบบจะถอดรหัสออกมาเป็นพลัง 4 สี พร้อมกราฟใยแมงมุม
+            จุดแข็ง และคำแนะนำในการทำงานร่วมกับผู้อื่น
+          </p>
+          <div class="hero-actions">
+            <button id="btnStart" class="btn btn-primary" type="button">
+              เริ่มค้นหาตัวเอง
+              <span>→</span>
+            </button>
+            <button id="btnHow" class="btn btn-ghost" type="button">ดูวิธีเล่น</button>
+          </div>
+          <div class="trust-row">
+            <span>✓ ใช้เวลาประมาณ 1–2 นาที</span>
+            <span>✓ เลือกเพียง 5 คำ</span>
+            <span>✓ ดูผลทันที</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="วงล้อบุคลิกภาพ 4 สี">
+          <div class="orbital-ring ring-1"></div>
+          <div class="orbital-ring ring-2"></div>
+          <div class="color-wheel">
+            <div class="wheel-core">
+              <span>YOU</span>
+              <small>are unique</small>
+            </div>
+          </div>
+          <div class="float-card fc-1"><b>THINK</b><span>คิดเป็นระบบ</span></div>
+          <div class="float-card fc-2"><b>FIGHT</b><span>พลังขับเคลื่อน</span></div>
+          <div class="float-card fc-3"><b>FINE</b><span>ละเอียดอ่อน</span></div>
+          <div class="float-card fc-4"><b>DO</b><span>ลงมือทำ</span></div>
+        </div>
+      </div>
+
+      <div class="color-principles">
+        <article class="principle p-blue">
+          <span class="p-dot"></span>
+          <div><b>THINK · สีน้ำเงิน</b><p>คิด วิเคราะห์ วางแผน มองภาพรวม</p></div>
+        </article>
+        <article class="principle p-red">
+          <span class="p-dot"></span>
+          <div><b>FIGHT · สีแดง</b><p>กล้า ตัดสินใจ รับผิดชอบ ขับเคลื่อน</p></div>
+        </article>
+        <article class="principle p-yellow">
+          <span class="p-dot"></span>
+          <div><b>FINE · สีเหลือง</b><p>ใส่ใจคน ละเอียด ประนีประนอม คุณค่า</p></div>
+        </article>
+        <article class="principle p-green">
+          <span class="p-dot"></span>
+          <div><b>DO · สีเขียว</b><p>ลงมือจริง เป็นขั้นตอน ทำให้เกิดผล</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="screenProfile" class="screen">
+      <div class="panel form-panel">
+        <div class="step-head">
+          <div>
+            <span class="eyebrow">STEP 1 OF 3</span>
+            <h2>ก่อนเริ่ม ขอรู้จักคุณนิดหนึ่ง</h2>
+            <p>ข้อมูลนี้ใช้สำหรับแสดงผลรายบุคคลและสรุปภาพรวมให้ผู้ดูแลกิจกรรม</p>
+          </div>
+          <span class="step-num">01</span>
+        </div>
+
+        <form id="profileForm" class="profile-form">
+          <label>
+            <span>ชื่อ–นามสกุล <em>*</em></span>
+            <input id="fullName" autocomplete="name" maxlength="100" required placeholder="กรอกชื่อ–นามสกุล" />
+          </label>
+          <div class="field-grid">
+            <label>
+              <span>หน่วยงาน / ห้อง / กลุ่ม</span>
+              <input id="organization" maxlength="100" placeholder="เช่น สำนักงาน..., ม.1/1, กลุ่ม A" />
+            </label>
+            <label>
+              <span>รหัสผู้เข้าร่วม</span>
+              <input id="participantCode" maxlength="40" placeholder="ถ้ามี" />
+            </label>
+          </div>
+          <label>
+            <span>อีเมล <small>(ไม่บังคับ)</small></span>
+            <input id="email" type="email" autocomplete="email" maxlength="120" placeholder="name@example.com" />
+          </label>
+          <label class="consent">
+            <input id="consent" type="checkbox" required />
+            <span>ยินยอมให้จัดเก็บข้อมูลและผลการทำกิจกรรมเพื่อการสรุปผลของกิจกรรมนี้ <em>*</em></span>
+          </label>
+          <div class="form-actions">
+            <button class="btn btn-ghost" data-go-home type="button">← กลับ</button>
+            <button class="btn btn-primary" type="submit">ไปเลือก 5 คำ →</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="screenWords" class="screen">
+      <div class="panel word-panel">
+        <div class="step-head sticky-head">
+          <div>
+            <span class="eyebrow">STEP 2 OF 3</span>
+            <h2>คำไหน “ใช่เรา” ที่สุด?</h2>
+            <p>เลือกให้ครบ 5 คำ จากความรู้สึกแรก ไม่ต้องคิดนาน</p>
+          </div>
+          <div class="pick-meter">
+            <b id="pickCount">0</b><span>/ 5</span>
+          </div>
+        </div>
+
+        <div id="wordCloud" class="word-cloud"></div>
+
+        <div class="word-footer">
+          <div class="selected-preview">
+            <span>คำที่เลือก</span>
+            <div id="selectedChips" class="chips"><i>ยังไม่ได้เลือก</i></div>
+          </div>
+          <button id="btnAnalyze" class="btn btn-primary" type="button" disabled>วิเคราะห์ตัวเรา ✦</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenResult" class="screen">
+      <div id="resultHero" class="result-hero">
+        <div class="result-badge">YOUR COLOR SIGNATURE</div>
+        <p class="result-kicker">พลังหลักของคุณคือ</p>
+        <h2 id="resultTitle">—</h2>
+        <p id="resultSubtitle" class="result-subtitle"></p>
+        <div id="resultScorePills" class="score-pills"></div>
+      </div>
+
+      <div class="result-grid">
+        <article class="panel chart-card">
+          <div class="card-head">
+            <div><span class="eyebrow">YOUR RADAR</span><h3>กราฟพลัง 4 สี</h3></div>
+            <span class="mini-tag">0–100%</span>
+          </div>
+          <div class="chart-wrap"><canvas id="resultRadar"></canvas></div>
+        </article>
+
+        <article class="panel insight-card">
+          <div class="card-head">
+            <div><span class="eyebrow">PERSONAL INSIGHT</span><h3>ลายเซ็นความเป็นคุณ</h3></div>
+          </div>
+          <div id="insightContent"></div>
+        </article>
+      </div>
+
+      <div class="panel selected-summary">
+        <div>
+          <span class="eyebrow">YOUR 5 WORDS</span>
+          <h3>5 คำที่คุณเลือก</h3>
+        </div>
+        <div id="resultWords" class="result-words"></div>
+      </div>
+
+      <div class="result-actions">
+        <button id="btnSaveImage" class="btn btn-ghost" type="button">บันทึกผลเป็นภาพ</button>
+        <button id="btnRestart" class="btn btn-primary" type="button">ทำอีกครั้ง</button>
+      </div>
+
+      <p class="disclaimer">
+        หมายเหตุ: กิจกรรมนี้เป็นเครื่องมือสะท้อนตัวตนเพื่อการเรียนรู้และการทำงานร่วมกัน
+        ไม่ใช่แบบทดสอบทางจิตวิทยาหรือการวินิจฉัยบุคลิกภาพมาตรฐาน
+      </p>
+    </section>
+
+    <section id="screenAdminLogin" class="screen">
+      <div class="admin-login-wrap">
+        <div class="panel admin-login-card">
+          <span class="eyebrow">ADMIN CONSOLE</span>
+          <h2>เข้าสู่ระบบผู้ดูแล</h2>
+          <p>ดูผู้เข้าร่วม ผลรายบุคคล สรุป 4 สี และส่งออกข้อมูล</p>
+          <form id="adminLoginForm">
+            <label><span>อีเมลผู้ดูแล</span><input id="adminEmail" type="email" required autocomplete="username" /></label>
+            <label><span>รหัสผ่าน</span><input id="adminPassword" type="password" required autocomplete="current-password" /></label>
+            <div id="adminLoginError" class="form-error"></div>
+            <button class="btn btn-primary full" type="submit">เข้าสู่ Dashboard</button>
+            <button class="btn btn-ghost full" data-go-home type="button">กลับหน้าหลัก</button>
+          </form>
+          <button id="btnDemoDashboard" class="demo-link hidden" type="button">ดูตัวอย่าง Dashboard (Demo)</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenAdmin" class="screen">
+      <div class="admin-top">
+        <div>
+          <span class="eyebrow">LIVE ACTIVITY OVERVIEW</span>
+          <h2>Talent Color Dashboard</h2>
+          <p id="adminHello">สรุปผลผู้เข้าร่วมทั้งหมดแบบเรียลไทม์</p>
+        </div>
+        <div class="admin-actions">
+          <button id="btnQr" class="btn btn-ghost btn-sm" type="button">QR เข้าร่วม</button>
+          <button id="btnExportCsv" class="btn btn-ghost btn-sm" type="button">Export CSV</button>
+          <button id="btnAdminLogout" class="btn btn-danger btn-sm" type="button">ออกจากระบบ</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <article class="stat-card">
+          <span>ผู้ทำกิจกรรม</span>
+          <strong id="statTotal">0</strong>
+          <small>รายการทั้งหมด</small>
+        </article>
+        <article class="stat-card stat-blue"><span>THINK</span><strong id="statThink">0</strong><small>สีน้ำเงิน</small></article>
+        <article class="stat-card stat-red"><span>FIGHT</span><strong id="statFight">0</strong><small>สีแดง</small></article>
+        <article class="stat-card stat-yellow"><span>FINE</span><strong id="statFine">0</strong><small>สีเหลือง</small></article>
+        <article class="stat-card stat-green"><span>DO</span><strong id="statDo">0</strong><small>สีเขียว</small></article>
+      </div>
+
+      <div class="admin-grid">
+        <article class="panel admin-chart-card">
+          <div class="card-head"><div><span class="eyebrow">GROUP DNA</span><h3>กราฟเฉลี่ยของกลุ่ม</h3></div></div>
+          <div class="chart-wrap admin-radar"><canvas id="adminRadar"></canvas></div>
+        </article>
+        <article class="panel admin-chart-card">
+          <div class="card-head"><div><span class="eyebrow">COLOR MIX</span><h3>สัดส่วนสีเด่น</h3></div></div>
+          <div class="chart-wrap admin-radar"><canvas id="adminDoughnut"></canvas></div>
+        </article>
+      </div>
+
+      <article class="panel admin-table-card">
+        <div class="table-tools">
+          <div>
+            <span class="eyebrow">PARTICIPANTS</span>
+            <h3>ผลรายบุคคล</h3>
+          </div>
+          <div class="filters">
+            <input id="adminSearch" placeholder="ค้นหาชื่อ / หน่วยงาน / รหัส" />
+            <select id="adminColorFilter">
+              <option value="">ทุกสี</option>
+              <option value="think">THINK · น้ำเงิน</option>
+              <option value="fight">FIGHT · แดง</option>
+              <option value="fine">FINE · เหลือง</option>
+              <option value="do">DO · เขียว</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>ผู้เข้าร่วม</th><th>หน่วยงาน/กลุ่ม</th><th>5 คำ</th><th>สีเด่น</th><th>คะแนน 4 สี</th><th>เวลา</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="modalHow" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card">
+      <button class="modal-x" data-close-modal aria-label="ปิด">×</button>
+      <span class="eyebrow">HOW IT WORKS</span>
+      <h3>ง่าย ๆ แค่ 3 ขั้นตอน</h3>
+      <div class="how-grid">
+        <div><b>01</b><h4>รู้จักกันก่อน</h4><p>กรอกชื่อและข้อมูลกลุ่ม เพื่อให้ผู้ดูแลสรุปผลได้</p></div>
+        <div><b>02</b><h4>เลือก 5 คำ</h4><p>เลือกคำที่รู้สึกว่าเป็นตัวคุณที่สุด ไม่ต้องเลือกสิ่งที่ “ควรเป็น”</p></div>
+        <div><b>03</b><h4>ดู Color Signature</h4><p>รับผล 4 สี กราฟใยแมงมุม จุดแข็ง และสไตล์การทำงาน</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalDetail" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card detail-modal-card">
+      <button class="modal-x" data-close-modal aria-label="ปิด">×</button>
+      <div id="detailContent"></div>
+      <div class="chart-wrap detail-chart"><canvas id="detailRadar"></canvas></div>
+    </div>
+  </div>
+
+  <div id="modalQr" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card qr-modal-card">
+      <button class="modal-x" data-close-modal aria-label="ปิด">×</button>
+      <span class="eyebrow">JOIN THE ACTIVITY</span>
+      <h3>สแกน QR Code เพื่อเริ่มทำ</h3>
+      <div id="qrBox" class="qr-box"></div>
+      <p id="qrUrl" class="qr-url"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
