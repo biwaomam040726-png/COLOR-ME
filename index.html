@@ -211,7 +211,7 @@
       <div class="result-actions compact-result-actions wrap-actions">
         <button id="btnSaveImage" class="btn btn-primary" type="button">การ์ดแนวนอน</button>
         <button id="btnSaveStory" class="btn btn-ghost" type="button">การ์ดมือถือ 9:16</button>
-        <button id="btnSaveCertificate" class="btn btn-ghost" type="button">การ์ดที่ระลึก / ประกาศนียบัตร</button>
+        <button id="btnSavePdfCard" class="btn btn-ghost" type="button">Export การ์ดเป็น PDF</button>
         <button id="btnRestart" class="btn btn-ghost" type="button">ทำอีกครั้ง</button>
       </div>
       <p class="disclaimer result-disclaimer">กิจกรรมนี้เป็นเครื่องมือสะท้อนตัวตนเพื่อการเรียนรู้และการทำงานร่วมกัน ไม่ใช่แบบทดสอบทางจิตวิทยามาตรฐาน</p>
@@ -269,8 +269,8 @@
         </div>
 
         <div class="admin-grid">
-          <article class="panel admin-chart-card"><div class="card-head"><div><span class="eyebrow">GROUP DNA</span><h3>กราฟเฉลี่ยของกลุ่ม</h3></div></div><div class="chart-wrap admin-radar"><canvas id="adminRadar"></canvas></div></article>
-          <article class="panel admin-chart-card"><div class="card-head"><div><span class="eyebrow">COLOR MIX</span><h3>สัดส่วนสีเด่น</h3></div></div><div class="chart-wrap admin-radar"><canvas id="adminDoughnut"></canvas></div></article>
+          <article class="panel admin-chart-card"><div class="card-head"><div><span class="eyebrow">GROUP DNA</span><h3>กราฟเฉลี่ยของกลุ่ม</h3></div><span class="live-chip"><i></i> กราฟสด</span></div><div class="chart-wrap admin-radar"><canvas id="adminRadar"></canvas></div></article>
+          <article class="panel admin-chart-card"><div class="card-head"><div><span class="eyebrow">COLOR MIX</span><h3>สัดส่วนสีเด่น</h3></div><span class="live-chip"><i></i> อัปเดตสด</span></div><div class="chart-wrap admin-radar"><canvas id="adminDoughnut"></canvas></div><div id="colorMixLegend" class="color-mix-legend"></div></article>
         </div>
       </div>
 
@@ -305,6 +305,11 @@
           </div>
           <div class="bulk-toolbar">
             <label class="checkbox-inline"><input id="selectAllResponses" type="checkbox" /> เลือกทั้งหมดในรายการที่กรองอยู่</label>
+            <div class="bulk-action-row">
+              <button id="btnSelectAllSystem" class="btn btn-ghost btn-sm" type="button">เลือกทั้งหมดทั้งระบบ</button>
+              <button id="btnSelectAllSession" class="btn btn-ghost btn-sm" type="button">เลือกทั้งหมดทั้ง Session</button>
+              <button id="btnClearSelected" class="btn btn-ghost btn-sm" type="button">ล้างการเลือก</button>
+            </div>
             <span id="selectedRowsCount" class="bulk-count">ยังไม่ได้เลือก</span>
             <button id="btnDeleteSelected" class="btn btn-danger btn-sm" type="button" disabled>ลบข้อมูลที่เลือก</button>
           </div>
@@ -385,6 +390,20 @@
         <label><span>คำอธิบาย</span><input id="sessionDescription" placeholder="ข้อความสั้น ๆ สำหรับผู้เข้าร่วม" /></label>
         <button class="btn btn-primary" type="submit">บันทึก Session</button>
       </form>
+    </div>
+  </div>
+
+  <div id="modalConfirm" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-confirm></div>
+    <div class="modal-card confirm-modal-card">
+      <div class="confirm-icon">!</div>
+      <span class="eyebrow">CONFIRM ACTION</span>
+      <h3 id="confirmTitle">ยืนยันการทำรายการ</h3>
+      <p id="confirmMessage" class="confirm-message">โปรดยืนยันการทำรายการนี้</p>
+      <div class="confirm-actions">
+        <button id="btnConfirmCancel" class="btn btn-ghost" type="button">ยกเลิก</button>
+        <button id="btnConfirmOk" class="btn btn-danger" type="button">ยืนยัน</button>
+      </div>
     </div>
   </div>
 
