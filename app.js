@@ -154,6 +154,13 @@ function renderColorMixLegend(rows){
   const el=$("#colorMixLegend");if(!el)return;const total=rows.length||0;
   el.innerHTML=COLORS.map(k=>{const count=rows.filter(r=>r.dominant===k).length;const pct=total?Math.round(count/total*100):0;return `<div class="color-mix-item"><b><i style="background:${META()[k].color}"></i>${META()[k].label}</b><span>${count} คน</span><strong>${pct}%</strong></div>`;}).join("");
 }
+function pointOnClosedPath(points,progress){
+  if(!points?.length)return null;const segs=[];let total=0;
+  for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],len=Math.hypot(b.x-a.x,b.y-a.y);segs.push({a,b,len});total+=len;}
+  let d=((progress%1)+1)%1*total;
+  for(const s of segs){if(d<=s.len){const u=s.len?d/s.len:0;return{x:s.a.x+(s.b.x-s.a.x)*u,y:s.a.y+(s.b.y-s.a.y)*u};}d-=s.len;}
+  return{x:points[0].x,y:points[0].y};
+}
 const CONTINUOUS_CHART_PLUGIN={
   id:"continuousChartMotion",
   afterDraw(chart){
@@ -161,18 +168,19 @@ const CONTINUOUS_CHART_PLUGIN={
     if(chart.config.type==="radar"){
       const scale=chart.scales?.r; if(!scale) return;
       const cx=scale.xCenter, cy=scale.yCenter, radius=scale.drawingArea || Math.min(chart.width,chart.height)*0.32;
-      ctx.save();
-      ctx.translate(cx,cy);
-      ctx.rotate((t/4)% (Math.PI*2));
-      const g=ctx.createLinearGradient(-radius,0,radius,0); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(120,170,255,.22)'); g.addColorStop(1,'rgba(255,255,255,0)');
-      ctx.strokeStyle=g; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-radius,0); ctx.lineTo(radius,0); ctx.stroke(); ctx.restore();
-      chart.data.datasets.forEach((ds,di)=>{if(di!==0)return;const meta=chart.getDatasetMeta(di); meta?.data?.forEach((pt,idx)=>{const pulse=4+(Math.sin(t*2.2+idx)*1.8); ctx.save(); ctx.fillStyle=(Array.isArray(ds.pointBackgroundColor)?ds.pointBackgroundColor[idx]:ds.pointBackgroundColor)||'#8fb5ff'; ctx.globalAlpha=.11; ctx.beginPath(); ctx.arc(pt.x,pt.y,pulse+4,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=.05; ctx.beginPath(); ctx.arc(pt.x,pt.y,pulse+10,0,Math.PI*2); ctx.fill(); ctx.restore();});});
-      const mainMeta=chart.getDatasetMeta(0); const pts=mainMeta?.data||[];
-      if(pts.length>2){ctx.save();ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.closePath();ctx.setLineDash([14,13]);ctx.lineDashOffset=-(t*38)%54;ctx.lineWidth=3;ctx.strokeStyle='rgba(132,191,255,.78)';ctx.shadowColor='rgba(96,163,255,.9)';ctx.shadowBlur=16;ctx.globalAlpha=.78;ctx.stroke();ctx.restore();}
+      ctx.save();ctx.translate(cx,cy);ctx.rotate((t/5)% (Math.PI*2));const g=ctx.createLinearGradient(-radius,0,radius,0);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.45,'rgba(100,200,255,.08)');g.addColorStop(.5,'rgba(122,232,255,.34)');g.addColorStop(.55,'rgba(100,200,255,.08)');g.addColorStop(1,'rgba(255,255,255,0)');ctx.strokeStyle=g;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-radius,0);ctx.lineTo(radius,0);ctx.stroke();ctx.restore();
+      const mainMeta=chart.getDatasetMeta(0),pts=mainMeta?.data||[];
+      if(pts.length>2){
+        ctx.save();ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.closePath();ctx.lineWidth=2.5;ctx.strokeStyle=`rgba(145,198,255,${.55+.2*Math.sin(t*1.8)})`;ctx.shadowColor='rgba(80,175,255,.95)';ctx.shadowBlur=14+6*Math.sin(t*1.8);ctx.stroke();ctx.restore();
+        const head=((t/3.2)%1);const trail=18;
+        for(let i=trail;i>=0;i--){const pos=pointOnClosedPath(pts,head-i*.008);if(!pos)continue;const a=(1-i/trail)*.95;const r=2.5+(1-i/trail)*4.5;ctx.save();ctx.globalAlpha=a;ctx.fillStyle=i<5?'#dff7ff':'#71cfff';ctx.shadowColor='#52c8ff';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(pos.x,pos.y,r,0,Math.PI*2);ctx.fill();ctx.restore();}
+      }
+      chart.data.datasets.forEach((ds,di)=>{if(di!==0)return;const meta=chart.getDatasetMeta(di);meta?.data?.forEach((pt,idx)=>{const pulse=5+(Math.sin(t*2.8+idx*.9)+1)*2.3;const col=(Array.isArray(ds.pointBackgroundColor)?ds.pointBackgroundColor[idx]:ds.pointBackgroundColor)||'#8fb5ff';ctx.save();ctx.fillStyle=col;ctx.globalAlpha=.15;ctx.shadowColor=col;ctx.shadowBlur=20;ctx.beginPath();ctx.arc(pt.x,pt.y,pulse+5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.06;ctx.beginPath();ctx.arc(pt.x,pt.y,pulse+12,0,Math.PI*2);ctx.fill();ctx.restore();});});
+      ctx.save();ctx.strokeStyle='rgba(115,188,255,.10)';ctx.lineWidth=1;for(let i=0;i<3;i++){const rr=radius*(.72+i*.11)+Math.sin(t*1.3+i)*4;ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.stroke();}ctx.restore();
     }
     if(chart.config.type==="doughnut"){
       const arc=chart.getDatasetMeta(0)?.data?.[0]; if(!arc) return; const {x,y,outerRadius}=arc; const sweep=(t/2.5)%(Math.PI*2);
-      ctx.save(); ctx.strokeStyle='rgba(133,175,255,.28)'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.beginPath(); ctx.arc(x,y,outerRadius+10,sweep,sweep+.55); ctx.stroke(); ctx.restore();
+      ctx.save();ctx.strokeStyle='rgba(133,210,255,.34)';ctx.lineWidth=9;ctx.lineCap='round';ctx.shadowColor='rgba(92,191,255,.8)';ctx.shadowBlur=14;ctx.beginPath();ctx.arc(x,y,outerRadius+10,sweep,sweep+.5);ctx.stroke();ctx.restore();
     }
   }
 };
@@ -354,6 +362,12 @@ function finishReveal(){
 function communicationCards(primary){
   return COLORS.map(k=>`<div class="comm-item"><b style="color:${META()[k].color}">${META()[k].label}</b><p>${COMMUNICATION[primary][k]}</p></div>`).join("");
 }
+function startResultGraphEngine(){
+  const wrap=document.querySelector('#screenResult .result-chart-wrap');if(!wrap)return;
+  wrap.querySelector('.result-graph-engine')?.remove();
+  const overlay=document.createElement('div');overlay.className='result-graph-engine';overlay.innerHTML=`<div class="result-engine-core"><div class="result-engine-ring"></div><div class="result-engine-scan"></div><div class="result-engine-label">กำลังสร้างกราฟ<small>COLOR SIGNATURE SYNC</small></div><span class="result-engine-node n1">THINK</span><span class="result-engine-node n2">FIGHT</span><span class="result-engine-node n3">FINE</span><span class="result-engine-node n4">DO</span></div>`;wrap.appendChild(overlay);
+  setTimeout(()=>overlay.classList.add('done'),2100);setTimeout(()=>overlay.remove(),2850);
+}
 function renderResult(){
   const r=state.result,p=META()[r.dominant],s=META()[r.secondary];
   $("#resultPersonName").textContent=state.profile.fullName||"ผู้เข้าร่วม";
@@ -365,7 +379,8 @@ function renderResult(){
   $("#resultWords").innerHTML=r.selectedWords.map(w=>`<span class="result-word">${escapeHtml(w)}</span>`).join("");
   $("#insightContent").innerHTML=`<div class="insight-block"><h4>✦ จุดแข็งที่เด่น</h4><p>${p.strength}</p></div><div class="insight-block"><h4>✦ เวลาทำงานกับทีม</h4><p>${p.teamwork}</p></div><div class="insight-block"><h4>✦ พลังเสริมจาก ${s.label}</h4><p>${s.strength}</p></div><div class="insight-block"><h4>✦ จุดที่ควรระวัง</h4><p>${p.watch}</p></div>`;
   $("#communicationGrid").innerHTML=communicationCards(r.dominant);
-  drawRadar("resultRadar",r.scores,"result");
+  drawGroupRadar("resultRadar",r.scores,"result");
+  startResultGraphEngine();
 }
 function radarData(scores,label="พลัง"){
   return{labels:RADAR_LABELS,datasets:[{label,data:[scores.think,scores.fight,scores.fine,scores.do],borderWidth:3,pointRadius:5,pointHoverRadius:7,fill:true,backgroundColor:"rgba(116,129,255,.24)",borderColor:"rgba(160,177,255,.98)",pointBackgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],pointBorderColor:"#07111f",pointBorderWidth:2}]};
@@ -597,13 +612,13 @@ function showProjectorSlide(index,animate=true){
 }
 function startProjectorSlideshow(){clearInterval(state.projectorSlideTimer);state.projectorSlideTimer=setInterval(()=>showProjectorSlide(state.projectorSlide+1),state.projectorMode==="tv"?6000:7500);}
 async function openProjector(mode="projector"){
-  state.projectorMode=mode;state.projectorSlide=0;const p=$("#projector");p.classList.remove("hidden");p.classList.toggle("tv-mode",mode==="tv");document.body.style.overflow="hidden";$("#projectorModeLabel").innerHTML=mode==="tv"?'<i></i> TV DISPLAY · AUTO':'<i></i> AUTO SUMMARY';showProjectorSlide(0,false);renderProjector();flashProjectorRefresh();clearInterval(state.projectorTimer);state.projectorTimer=setInterval(()=>{renderProjector();flashProjectorRefresh();},5000);startProjectorSlideshow();
+  state.projectorMode=mode;state.projectorSlide=0;const p=$("#projector");p.classList.remove("hidden");p.classList.toggle("tv-mode",mode==="tv");document.body.style.overflow="hidden";$("#projectorModeLabel").innerHTML=mode==="tv"?'<i></i> TV DISPLAY · ONE SCREEN':'<i></i> AUTO SUMMARY';showProjectorSlide(0,false);renderProjector();flashProjectorRefresh();clearInterval(state.projectorTimer);state.projectorTimer=setInterval(()=>{renderProjector();flashProjectorRefresh();},5000);clearInterval(state.projectorSlideTimer);state.projectorSlideTimer=null;if(mode!=="tv")startProjectorSlideshow();
   if(mode==="tv"&&document.documentElement.requestFullscreen){try{await document.documentElement.requestFullscreen();}catch(e){}}
 }
 async function closeProjector(){const p=$("#projector");p.classList.add("hidden");p.classList.remove("tv-mode");document.body.style.overflow="";clearInterval(state.projectorTimer);clearInterval(state.projectorSlideTimer);state.projectorTimer=null;state.projectorSlideTimer=null;if(document.fullscreenElement){try{await document.exitFullscreen();}catch(e){}}}
 function renderProjector(){
   if($("#projector").classList.contains("hidden"))return;const rows=filteredResponses(),avg=averageScores(rows),sid=selectedSessionId(),s=state.sessions.find(x=>x.id===sid);
-  $("#projectorSessionName").textContent=s?.name||"ผลรวมทุก Session";$("#projectorUpdatedAt").textContent=`อัปเดตอัตโนมัติทุก 5 วินาที · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;$("#projTotal").textContent=rows.length;COLORS.forEach(k=>$("#proj"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length);
+  $("#projectorSessionName").textContent=s?.name||"ผลรวมทุก Session";$("#projectorUpdatedAt").textContent=state.projectorMode==="tv"?`TV Display แสดงภาพรวมทั้งหมดในหน้าเดียว · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`:`อัปเดตอัตโนมัติทุก 5 วินาที · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;$("#projTotal").textContent=rows.length;COLORS.forEach(k=>$("#proj"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length);
   drawGroupRadar("projectorRadar",avg,"projector");drawDoughnutCanvas("projectorDoughnut",rows,"projectorDoughnut");drawGroupRadar("projectorTeamRadar",avg,"projectorTeam");renderProjectorColorLegend(rows);
   const sorted=COLORS.slice().sort((a,b)=>avg[b]-avg[a]),hi=sorted[0],lo=sorted.at(-1);
   $("#projectorInsight").innerHTML=`<div class="dna-note"><b>พลังเด่นของกลุ่ม</b><p><span style="color:${META()[hi].color}">${META()[hi].label}</span> เฉลี่ย ${avg[hi]}%</p></div><div class="dna-note"><b>พลังที่น้อยที่สุด</b><p><span style="color:${META()[lo].color}">${META()[lo].label}</span> เฉลี่ย ${avg[lo]}%</p></div><div class="dna-note"><b>Team insight</b><p>${teamAdvice(avg)}</p></div>`;
@@ -615,11 +630,52 @@ function landscapeExportMarkup(){
   const data=resultDataForExport();if(!data)return"";const primary=data.primary,secondary=data.secondary,r=data.result;
   return `<div class="landscape-export-card"><div class="result-card-header"><div class="result-person-block"><span class="eyebrow">COLOR SIGNATURE RESULT</span><h2>${escapeHtml(data.fullName)}</h2><p>${escapeHtml(data.meta)}</p></div><div class="result-main-block"><span class="result-kicker">พลังหลักของคุณคือ</span><h1 style="color:${primary.color}">${primary.title}</h1><p class="result-subtitle">พลังรอง ${secondary.label} · ${secondary.thai} ช่วยเสริมให้สไตล์ของคุณมีทั้ง ${primary.thai} และ ${secondary.thai} ในแบบเฉพาะตัว</p></div><div class="score-pills result-score-pills">${exportScorePills(r.scores,'score-pill')}</div></div><div class="result-dashboard-grid"><article class="result-panel result-radar-panel"><div class="card-head compact-head"><div><span class="eyebrow">YOUR RADAR</span><h3>กราฟพลัง 4 สี</h3></div><span class="mini-tag">0–100%</span></div><div class="chart-wrap result-chart-wrap"><canvas id="landscapeExportRadar"></canvas></div></article><article class="result-panel result-insight-panel"><div class="card-head compact-head"><div><span class="eyebrow">PERSONAL INSIGHT</span><h3>ลายเซ็นความเป็นคุณ</h3></div></div><div class="compact-insights"><div class="insight-block"><h4>✦ จุดแข็งที่เด่น</h4><p>${escapeHtml(primary.strength)}</p></div><div class="insight-block"><h4>✦ เวลาทำงานกับทีม</h4><p>${escapeHtml(primary.teamwork)}</p></div><div class="insight-block"><h4>✦ พลังเสริมจาก ${secondary.label}</h4><p>${escapeHtml(secondary.strength)}</p></div><div class="insight-block"><h4>✦ จุดที่ควรระวัง</h4><p>${escapeHtml(primary.watch)}</p></div></div></article><article class="result-panel result-comm-panel"><div class="card-head compact-head"><div><span class="eyebrow">COMMUNICATION GUIDE</span><h3>ควรสื่อสารอย่างไร</h3></div></div><div class="communication-grid compact-communication">${communicationCards(r.dominant)}</div></article></div><div class="result-card-footer"><div class="result-word-area"><span class="eyebrow">YOUR 5 WORDS</span><div class="result-words">${exportWordPills(r.selectedWords,'result-word')}</div></div><div class="result-brand-signature"><b>COLOR ME</b><span>5 WORDS · 4 COLORS</span></div></div></div>`;
 }
+function canvasRoundRect(ctx,x,y,w,h,r,fill,stroke){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}
+}
+function canvasWrapLines(ctx,text,maxWidth,maxLines=99){
+  const raw=String(text||'');const tokens=raw.split(/\s+/).filter(Boolean);const lines=[];let line='';
+  const pushLine=()=>{if(line&&lines.length<maxLines){lines.push(line);line='';}};
+  for(const token of tokens){
+    const candidate=line?`${line} ${token}`:token;
+    if(ctx.measureText(candidate).width<=maxWidth){line=candidate;continue;}
+    if(line)pushLine();if(lines.length>=maxLines)break;
+    if(ctx.measureText(token).width<=maxWidth){line=token;continue;}
+    let chunk='';for(const ch of [...token]){const next=chunk+ch;if(ctx.measureText(next).width<=maxWidth){chunk=next;}else{line=chunk;pushLine();if(lines.length>=maxLines)break;chunk=ch;}}if(lines.length>=maxLines)break;line=chunk;
+  }
+  pushLine();if(lines.length===maxLines){let last=lines[maxLines-1];while(ctx.measureText(last+'…').width>maxWidth&&last.length>1)last=last.slice(0,-1);lines[maxLines-1]=last+'…';}return lines;
+}
+function canvasText(ctx,text,x,y,maxWidth,lineHeight,maxLines=99){const lines=canvasWrapLines(ctx,text,maxWidth,maxLines);lines.forEach((ln,i)=>ctx.fillText(ln,x,y+i*lineHeight));return y+lines.length*lineHeight;}
+function drawStaticRadarCanvas(ctx,cx,cy,radius,scores){
+  const vals=[scores.think,scores.fight,scores.fine,scores.do];const cols=['#426cff','#ff455d','#ffc938','#37d889'];
+  ctx.save();
+  for(let ring=1;ring<=5;ring++){const rr=radius*ring/5;ctx.beginPath();ctx.moveTo(cx,cy-rr);ctx.lineTo(cx+rr,cy);ctx.lineTo(cx,cy+rr);ctx.lineTo(cx-rr,cy);ctx.closePath();ctx.strokeStyle='rgba(215,232,255,.13)';ctx.lineWidth=1.4;ctx.stroke();}
+  ctx.strokeStyle='rgba(215,232,255,.12)';ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
+  const pts=[[cx,cy-radius*vals[0]/100],[cx+radius*vals[1]/100,cy],[cx,cy+radius*vals[2]/100],[cx-radius*vals[3]/100,cy]];
+  const fill=ctx.createLinearGradient(cx-radius,cy-radius,cx+radius,cy+radius);fill.addColorStop(0,'rgba(66,108,255,.58)');fill.addColorStop(.34,'rgba(255,69,93,.42)');fill.addColorStop(.68,'rgba(255,201,56,.34)');fill.addColorStop(1,'rgba(55,216,137,.48)');
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle='rgba(222,236,255,.95)';ctx.lineWidth=4;ctx.shadowColor='rgba(92,171,255,.65)';ctx.shadowBlur=16;ctx.stroke();ctx.shadowBlur=0;
+  pts.forEach((pt,i)=>{ctx.fillStyle=cols[i];ctx.beginPath();ctx.arc(pt[0],pt[1],7,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#07111f';ctx.lineWidth=3;ctx.stroke();});
+  ctx.textAlign='center';ctx.fillStyle='#dce8f5';ctx.font='600 16px Prompt';ctx.fillText('THINK · คิด',cx,cy-radius-26);ctx.fillText('FINE · ละเอียด',cx,cy+radius+40);ctx.textAlign='left';ctx.fillText('FIGHT · ลุย',cx+radius+20,cy+6);ctx.textAlign='right';ctx.fillText('DO · ทำ',cx-radius-20,cy+6);ctx.restore();
+}
 async function generateLandscapeCardCanvas(){
-  const data=resultDataForExport();if(!data)throw new Error("ยังไม่มีผลลัพธ์ให้สร้างการ์ด");
-  const host=createExportHost(landscapeExportMarkup(),1920,1080);let chart=null;
-  try{chart=await renderStaticRadar(host.querySelector('#landscapeExportRadar'),data.result.scores,16);return await captureElementPng(host.firstElementChild,{backgroundColor:'#06111e',width:1920,height:1080});}
-  finally{chart?.destroy?.();host?.remove?.();}
+  const data=resultDataForExport();if(!data)throw new Error('ยังไม่มีผลลัพธ์ให้สร้างการ์ด');await document.fonts.ready;
+  const W=1920,H=1080,S=2,canvas=document.createElement('canvas');canvas.width=W*S;canvas.height=H*S;const ctx=canvas.getContext('2d');ctx.scale(S,S);
+  const primary=data.primary,secondary=data.secondary,r=data.result;
+  const bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#091a2e');bg.addColorStop(.58,'#071525');bg.addColorStop(1,'#06111e');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  const glow1=ctx.createRadialGradient(250,90,0,250,90,420);glow1.addColorStop(0,'rgba(76,119,255,.16)');glow1.addColorStop(1,'rgba(76,119,255,0)');ctx.fillStyle=glow1;ctx.fillRect(0,0,W,H);const glow2=ctx.createRadialGradient(1700,930,0,1700,930,520);glow2.addColorStop(0,'rgba(55,216,137,.10)');glow2.addColorStop(1,'rgba(55,216,137,0)');ctx.fillStyle=glow2;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#65d8ff';ctx.font='700 12px Prompt';ctx.fillText('COLOR SIGNATURE RESULT',60,72);ctx.fillStyle='#ffffff';ctx.font='700 42px Kanit';ctx.fillText(data.fullName,60,118);ctx.fillStyle='#9fb4c9';ctx.font='500 14px Prompt';ctx.fillText(data.meta,60,148);
+  ctx.fillStyle='#8fa6bc';ctx.font='500 13px Prompt';ctx.fillText('พลังหลักของคุณคือ',520,65);ctx.fillStyle=primary.color;ctx.font='700 64px Kanit';ctx.fillText(primary.title,520,125);ctx.fillStyle='#b8c8d9';ctx.font='500 14px Prompt';canvasText(ctx,`พลังรอง ${secondary.label} · ${secondary.thai} ช่วยเสริมให้สไตล์ของคุณมีทั้ง ${primary.thai} และ ${secondary.thai} ในแบบเฉพาะตัว`,520,154,720,22,2);
+  let px=1500,py=54;COLORS.forEach(k=>{const txt=`${META()[k].label} ${r.scores[k]}%`;ctx.font='700 13px Prompt';const w=ctx.measureText(txt).width+24;if(px+w>1870){px=1500;py+=44;}canvasRoundRect(ctx,px,py,w,34,17,'rgba(255,255,255,.045)','rgba(255,255,255,.08)');ctx.fillStyle=META()[k].color;ctx.fillText(txt,px+12,py+22);px+=w+9;});
+  ctx.strokeStyle='rgba(255,255,255,.08)';ctx.beginPath();ctx.moveTo(60,190);ctx.lineTo(1860,190);ctx.stroke();
+  const y=220,h=720,gap=20,x1=50,w1=530,x2=x1+w1+gap,w2=590,x3=x2+w2+gap,w3=660;
+  [[x1,w1],[x2,w2],[x3,w3]].forEach(([x,w])=>canvasRoundRect(ctx,x,y,w,h,28,'rgba(255,255,255,.026)','rgba(255,255,255,.08)'));
+  ctx.fillStyle='#65d8ff';ctx.font='700 11px Prompt';ctx.fillText('YOUR RADAR',x1+28,y+38);ctx.fillStyle='#fff';ctx.font='700 26px Kanit';ctx.fillText('กราฟพลัง 4 สี',x1+28,y+72);canvasRoundRect(ctx,x1+w1-96,y+25,68,28,14,'rgba(255,255,255,.035)','rgba(255,255,255,.07)');ctx.fillStyle='#a8bad0';ctx.font='600 10px Prompt';ctx.fillText('0–100%',x1+w1-80,y+43);drawStaticRadarCanvas(ctx,x1+w1/2,y+400,190,r.scores);
+  ctx.fillStyle='#65d8ff';ctx.font='700 11px Prompt';ctx.fillText('PERSONAL INSIGHT',x2+28,y+38);ctx.fillStyle='#fff';ctx.font='700 26px Kanit';ctx.fillText('ลายเซ็นความเป็นคุณ',x2+28,y+72);
+  const insights=[['✦ จุดแข็งที่เด่น',primary.strength],['✦ เวลาทำงานกับทีม',primary.teamwork],[`✦ พลังเสริมจาก ${secondary.label}`,secondary.strength],['✦ จุดที่ควรระวัง',primary.watch]];let iy=y+100;insights.forEach(([title,body])=>{canvasRoundRect(ctx,x2+24,iy,w2-48,132,18,'rgba(255,255,255,.025)','rgba(255,255,255,.05)');ctx.fillStyle='#f0f6ff';ctx.font='700 15px Prompt';ctx.fillText(title,x2+42,iy+30);ctx.fillStyle='#c7d3df';ctx.font='500 12px Prompt';canvasText(ctx,body,x2+42,iy+56,w2-84,19,4);iy+=146;});
+  ctx.fillStyle='#65d8ff';ctx.font='700 11px Prompt';ctx.fillText('COMMUNICATION GUIDE',x3+28,y+38);ctx.fillStyle='#fff';ctx.font='700 26px Kanit';ctx.fillText('ควรสื่อสารอย่างไร',x3+28,y+72);
+  const cardW=(w3-70)/2,cardH=250;COLORS.forEach((k,i)=>{const cx=x3+24+(i%2)*(cardW+18),cy=y+102+Math.floor(i/2)*(cardH+18);canvasRoundRect(ctx,cx,cy,cardW,cardH,18,'rgba(255,255,255,.025)','rgba(255,255,255,.05)');ctx.fillStyle=META()[k].color;ctx.font='700 15px Prompt';ctx.fillText(META()[k].label,cx+18,cy+32);ctx.fillStyle='#d1dce7';ctx.font='500 12px Prompt';canvasText(ctx,COMMUNICATION[r.dominant][k],cx+18,cy+60,cardW-36,19,7);});
+  ctx.strokeStyle='rgba(255,255,255,.08)';ctx.beginPath();ctx.moveTo(60,965);ctx.lineTo(1860,965);ctx.stroke();ctx.fillStyle='#65d8ff';ctx.font='700 10px Prompt';ctx.fillText('YOUR 5 WORDS',60,995);let wx=168;ctx.font='600 12px Prompt';r.selectedWords.forEach(word=>{const ww=ctx.measureText(word).width+24;canvasRoundRect(ctx,wx,976,ww,34,12,'rgba(255,255,255,.04)','rgba(255,255,255,.07)');ctx.fillStyle='#e6eef7';ctx.fillText(word,wx+12,998);wx+=ww+8;});ctx.textAlign='right';ctx.fillStyle='#fff';ctx.font='700 24px Kanit';ctx.fillText('COLOR ME',1860,995);ctx.fillStyle='#8098b0';ctx.font='600 9px Prompt';ctx.fillText('5 WORDS · 4 COLORS',1860,1015);ctx.textAlign='left';
+  return canvas;
 }
 async function saveResultCard(){
   if(!state.result)return toast("ยังไม่มีผลลัพธ์ให้สร้างการ์ด");
@@ -711,4 +767,4 @@ function setupPremiumMotion(){
   if(!document.body.dataset.motionReady){document.body.dataset.motionReady='1';render();}
 }
 
-(async function boot(){wireEvents();renderWords();setupPremiumMotion();await initFirebase();})();
+(async function boot(){wireEvents();renderWords();setupPremiumMotion();startChartMotionLoop();await initFirebase();})();

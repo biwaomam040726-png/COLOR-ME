@@ -340,3 +340,11 @@ biwaomam040726-png.github.io
 
 ### สำคัญ: Firestore Rules เปลี่ยนใน V12
 เพราะหน้า Participant ไม่มี consent field แล้ว ต้องนำ `firestore.rules` ของ V12 ไปวางที่ Firebase Console > Firestore > Rules แล้วกด Publish ก่อนใช้งานจริง
+
+
+## V13
+- แก้ลูปกราฟต่อเนื่องให้ทำงานจริงตลอดเวลา
+- เพิ่ม pulse tracer วิ่งตามขอบ Radar และวงแสงที่จุดข้อมูล
+- เพิ่มเอฟเฟกต์ Analysis Engine ตอนเปิดกราฟผลลัพธ์
+- เปลี่ยนการสร้างการ์ดแนวนอน/PDF เป็น Canvas renderer ขนาด 4K เพื่อลดปัญหากราฟตก/เลย์เอาต์เพี้ยนจาก html2canvas
+- TV Display แสดง Overview + Color Mix + Team DNA ในหน้าเดียว ไม่สลับหน้า
