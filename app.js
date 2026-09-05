@@ -39,7 +39,7 @@ const DEFAULT_CONFIG={
 };
 
 let state={
-  profile:{},selected:[],result:null,responses:[],sessions:[],activeSession:null,
+  profile:{},selected:[],result:null,responses:[],sessions:[],activeSession:null,selectedResponseIds:[],
   demoMode:false,firebaseReady:false,currentAdmin:null,config:structuredClone(DEFAULT_CONFIG),
   unsubscribeResponses:null,unsubscribeSessions:null
 };
@@ -66,6 +66,37 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show"
 function formatDate(v){let d;if(!v)return"—";if(v?.toDate)d=v.toDate();else d=new Date(v);if(Number.isNaN(d.getTime()))return"—";return new Intl.DateTimeFormat("th-TH",{dateStyle:"medium",timeStyle:"short"}).format(d);}
 function selectedSessionId(){return $("#adminSessionFilter")?.value||"";}
 function filteredResponses(){const sid=selectedSessionId();return sid?state.responses.filter(r=>r.sessionId===sid):state.responses;}
+function participantFilteredRows(){
+  const q=$("#adminSearch")?.value?.trim().toLowerCase()||"",cf=$("#adminColorFilter")?.value||"";
+  return filteredResponses().filter(r=>{const hay=[r.fullName,r.organization,r.email,r.sessionName].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!cf||r.dominant===cf);});
+}
+function isResponseSelected(id){return state.selectedResponseIds.includes(String(id));}
+function setResponseSelected(id,selected){const sid=String(id);const set=new Set(state.selectedResponseIds.map(String));selected?set.add(sid):set.delete(sid);state.selectedResponseIds=[...set];}
+function clearResponseSelection(){state.selectedResponseIds=[];syncParticipantSelectionUI();}
+function toggleAllFilteredResponses(selected){participantFilteredRows().forEach(r=>setResponseSelected(r.id,selected));syncParticipantSelectionUI();renderTable();}
+function syncParticipantSelectionUI(){
+  const count=state.selectedResponseIds.length;
+  const visible=participantFilteredRows();
+  const visibleCount=visible.filter(r=>isResponseSelected(r.id)).length;
+  const allVisible=visible.length>0 && visibleCount===visible.length;
+  const head=$("#selectAllResponsesHead"),bar=$("#selectAllResponses"),countEl=$("#selectedRowsCount"),delBtn=$("#btnDeleteSelected");
+  if(head){head.checked=allVisible;head.indeterminate=visibleCount>0 && visibleCount<visible.length;}
+  if(bar){bar.checked=allVisible;bar.indeterminate=visibleCount>0 && visibleCount<visible.length;}
+  if(countEl)countEl.textContent=count?`เลือกแล้ว ${count} รายการ`:"ยังไม่ได้เลือก";
+  if(delBtn)delBtn.disabled=!count;
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function resultDataForExport(){
+  if(!state.result)return null;
+  const primary=META()[state.result.dominant],secondary=META()[state.result.secondary];
+  return {result:state.result,primary,secondary,fullName:state.profile.fullName||"ผู้เข้าร่วม",meta:[state.profile.organization,state.activeSession?.name].filter(Boolean).join(" · ")||"COLOR ME participant",dateText:new Intl.DateTimeFormat("th-TH",{dateStyle:"medium"}).format(new Date())};
+}
+function exportScorePills(scores,clsName="story-pill"){return COLORS.map(k=>`<span class="${clsName}"><b style="color:${META()[k].color}">${META()[k].label}</b> ${scores[k]}%</span>`).join("");}
+function exportWordPills(words,clsName="story-word"){return (words||[]).map(w=>`<span class="${clsName}">${escapeHtml(w)}</span>`).join("");}
+function createExportHost(innerHtml,width,height){const host=document.createElement("div");host.className="export-clone-host";host.style.width=`${width}px`;host.style.height=`${height}px`;host.innerHTML=innerHtml;document.body.appendChild(host);return host;}
+async function renderStaticRadar(canvas,scores,labelSize=16){if(!canvas||!window.Chart||!scores)return null;const chart=new Chart(canvas,{type:"radar",data:radarData(scores,"พลัง"),options:baseChartOptions({animation:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.10)"},angleLines:{color:"rgba(255,255,255,.10)"},pointLabels:{color:"#dce6f2",font:{family:"Prompt",size:labelSize}}}}})});await sleep(50);return chart;}
+async function captureElementPng(node,opts){await document.fonts.ready;await sleep(260);return html2canvas(node,{backgroundColor:opts.backgroundColor||"#06111e",scale:2,useCORS:true,logging:false,width:opts.width,height:opts.height,windowWidth:opts.width,windowHeight:opts.height});}
+function downloadCanvasPng(canvas,filename){const a=document.createElement("a");a.download=filename;a.href=canvas.toDataURL("image/png",1);a.click();}
 
 async function initFirebase(){
   if(!isConfigured()){state.demoMode=true;$("#modeBadge").classList.remove("hidden");$("#btnDemoDashboard").classList.remove("hidden");loadDemoConfig();await resolveSession();return;}
@@ -252,10 +283,20 @@ function renderResult(){
   drawRadar("resultRadar",r.scores,"result");
 }
 function radarData(scores,label="พลัง"){
-  return{labels:["THINK · คิด","FIGHT · ลุย","FINE · ละเอียด","DO · ทำ"],datasets:[{label,data:[scores.think,scores.fight,scores.fine,scores.do],borderWidth:2,pointRadius:4,fill:true,backgroundColor:"rgba(116,129,255,.20)",borderColor:"rgba(145,164,255,.95)",pointBackgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],pointBorderColor:"#07111f"}]};
+  return{labels:["THINK · คิด","FIGHT · ลุย","FINE · ละเอียด","DO · ทำ"],datasets:[{label,data:[scores.think,scores.fight,scores.fine,scores.do],borderWidth:3,pointRadius:4.5,pointHoverRadius:6.5,fill:true,backgroundColor:"rgba(116,129,255,.22)",borderColor:"rgba(145,164,255,.98)",pointBackgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],pointBorderColor:"#07111f",pointBorderWidth:2}]};
 }
-function baseChartOptions(){return{responsive:true,maintainAspectRatio:false,scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.09)"},angleLines:{color:"rgba(255,255,255,.09)"},pointLabels:{color:"#c3cfdf",font:{family:"Prompt",size:11}}}},plugins:{legend:{display:false}},animation:{duration:900}};}
-function drawRadar(id,scores,key,label){if(charts[key])charts[key].destroy();const el=document.getElementById(id);if(!el||!window.Chart)return;charts[key]=new Chart(el,{type:"radar",data:radarData(scores,label),options:baseChartOptions()});}
+function baseChartOptions(extra={}){
+  return{responsive:true,maintainAspectRatio:false,interaction:{mode:"nearest",intersect:false},elements:{line:{tension:.22}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:20},grid:{color:"rgba(255,255,255,.09)"},angleLines:{color:"rgba(255,255,255,.09)"},pointLabels:{color:"#c3cfdf",font:{family:"Prompt",size:11}}}},plugins:{legend:{display:false},tooltip:{backgroundColor:"rgba(7,17,31,.96)",borderColor:"rgba(132,170,220,.35)",borderWidth:1,titleColor:"#fff",bodyColor:"#dce8f5",padding:10}},animation:{duration:1400,easing:"easeOutQuart"},transitions:{active:{animation:{duration:250}}},...extra};
+}
+function buildAnimatedRadar(canvas,datasets,key,extraOptions={}){
+  if(charts[key])charts[key].destroy();
+  const labels=["THINK","FIGHT","FINE","DO"];
+  const startSets=datasets.map(ds=>({...ds,data:ds.data.map(()=>0)}));
+  charts[key]=new Chart(canvas,{type:"radar",data:{labels,datasets:startSets},options:baseChartOptions(extraOptions)});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{charts[key].data.datasets=datasets.map(ds=>({...ds,data:[...ds.data]}));charts[key].update();}));
+  return charts[key];
+}
+function drawRadar(id,scores,key,label){const el=document.getElementById(id);if(!el||!window.Chart)return;buildAnimatedRadar(el,[radarData(scores,label).datasets[0]],key);}
 
 async function adminLogin(email,password){
   if(!state.firebaseReady)throw new Error("ยังไม่ได้ตั้งค่า Firebase");
@@ -289,14 +330,21 @@ function loadDemoAdmin(){
 function averageScores(rows){const a={think:0,fight:0,fine:0,do:0};if(!rows.length)return a;COLORS.forEach(k=>a[k]=Math.round(rows.reduce((s,r)=>s+(Number(r.scores?.[k])||0),0)/rows.length));return a;}
 function renderAdmin(){
   const rows=filteredResponses();$("#statTotal").textContent=rows.length;COLORS.forEach(k=>{$("#stat"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length;});
-  drawRadar("adminRadar",averageScores(rows),"adminRadar");drawDoughnut(rows);renderTable();renderTeamDNA();renderProjector();
+  drawRadar("adminRadar",averageScores(rows),"adminRadar");drawDoughnut(rows);renderTable();renderTeamDNA();renderProjector();syncParticipantSelectionUI();
 }
-function drawDoughnut(rows){if(charts.adminDoughnut)charts.adminDoughnut.destroy();charts.adminDoughnut=new Chart($("#adminDoughnut"),{type:"doughnut",data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data:COLORS.map(k=>rows.filter(r=>r.dominant===k).length),backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#0b182a",borderWidth:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#b7c5d7",usePointStyle:true,font:{family:"Prompt"}}}}}});}
+function drawDoughnut(rows){
+  if(charts.adminDoughnut)charts.adminDoughnut.destroy();
+  const finalData=COLORS.map(k=>rows.filter(r=>r.dominant===k).length);
+  charts.adminDoughnut=new Chart($("#adminDoughnut"),{type:"doughnut",data:{labels:["THINK","FIGHT","FINE","DO"],datasets:[{data:[0,0,0,0],backgroundColor:["#426cff","#ff455d","#ffc938","#37d889"],borderColor:"#0b182a",borderWidth:4,hoverOffset:10}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#b7c5d7",usePointStyle:true,font:{family:"Prompt"}}}},animation:{animateRotate:true,animateScale:true,duration:1500,easing:"easeOutQuart"}}});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{charts.adminDoughnut.data.datasets[0].data=finalData;charts.adminDoughnut.update();}));
+}
 function renderTable(){
-  const q=$("#adminSearch").value.trim().toLowerCase(),cf=$("#adminColorFilter").value;
-  const rows=filteredResponses().filter(r=>{const hay=[r.fullName,r.organization,r.email,r.sessionName].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!cf||r.dominant===cf);});
-  $("#adminTableBody").innerHTML=rows.length?rows.map(r=>`<tr><td><div class="person-name">${escapeHtml(r.fullName||"—")}</div><div class="person-sub">${escapeHtml(r.email||"")}</div></td><td>${escapeHtml(r.sessionName||"—")}</td><td>${escapeHtml(r.organization||"—")}</td><td>${(r.selectedWords||[]).map(escapeHtml).join(" · ")}</td><td><span class="color-badge cb-${r.dominant}">${META()[r.dominant]?.label||"—"}</span></td><td><div class="score-mini">${COLORS.map(k=>`<i>${META()[k].label[0]} ${r.scores?.[k]??0}%</i>`).join("")}</div></td><td>${formatDate(r.createdAt)}</td><td><button class="btn btn-ghost btn-sm" data-detail="${r.id}">ดูกราฟ</button></td></tr>`).join(""):`<tr><td colspan="8" style="text-align:center;color:#7d8da2;padding:36px">ไม่พบข้อมูล</td></tr>`;
-  $$("[data-detail]").forEach(b=>b.addEventListener("click",()=>showDetail(b.dataset.detail)));
+  const rows=participantFilteredRows();
+  $("#adminTableBody").innerHTML=rows.length?rows.map(r=>`<tr class="${isResponseSelected(r.id)?"participant-row-selected":""}"><td class="col-check"><input class="response-check" data-response-check="${r.id}" type="checkbox" ${isResponseSelected(r.id)?"checked":""} /></td><td><div class="person-name">${escapeHtml(r.fullName||"—")}</div><div class="person-sub">${escapeHtml(r.email||"")}</div></td><td>${escapeHtml(r.sessionName||"—")}</td><td>${escapeHtml(r.organization||"—")}</td><td>${(r.selectedWords||[]).map(escapeHtml).join(" · ")}</td><td><span class="color-badge cb-${r.dominant}">${META()[r.dominant]?.label||"—"}</span></td><td><div class="score-mini">${COLORS.map(k=>`<i>${META()[k].label[0]} ${r.scores?.[k]??0}%</i>`).join("")}</div></td><td>${formatDate(r.createdAt)}</td><td><div class="row-actions"><button class="btn btn-ghost btn-sm" data-detail="${r.id}">ดูกราฟ</button><button class="btn btn-soft-danger btn-sm" data-delete-response="${r.id}">ลบ</button></div></td></tr>`).join(""):`<tr><td colspan="9" style="text-align:center;color:#7d8da2;padding:36px">ไม่พบข้อมูล</td></tr>`;
+  $$('[data-detail]').forEach(b=>b.addEventListener('click',()=>showDetail(b.dataset.detail)));
+  $$('[data-delete-response]').forEach(b=>b.addEventListener('click',()=>deleteResponse(b.dataset.deleteResponse)));
+  $$('[data-response-check]').forEach(ch=>ch.addEventListener('change',()=>{setResponseSelected(ch.dataset.responseCheck,ch.checked);syncParticipantSelectionUI();renderTable();}));
+  syncParticipantSelectionUI();
 }
 function showDetail(id){const r=state.responses.find(x=>String(x.id)===String(id));if(!r)return;$("#detailContent").innerHTML=`<span class="eyebrow">INDIVIDUAL RESULT</span><h3 class="detail-title">${escapeHtml(r.fullName||"—")}</h3><div class="detail-meta">${escapeHtml(r.sessionName||"")} · ${escapeHtml(r.organization||"")} · ${formatDate(r.createdAt)}</div><div class="detail-words">${(r.selectedWords||[]).map(w=>`<span class="result-word">${escapeHtml(w)}</span>`).join("")}</div>`;openModal("#modalDetail");setTimeout(()=>drawRadar("detailRadar",r.scores||averageScores([]),"detail"),50);}
 
@@ -309,10 +357,12 @@ function fillSessionSelectors(){
 }
 function renderSessions(){
   const wrap=$("#sessionCards");if(!wrap)return;
-  wrap.innerHTML=state.sessions.length?state.sessions.map(s=>`<article class="session-card"><h4>${escapeHtml(s.name)}</h4><p>${escapeHtml(s.description||"ไม่มีคำอธิบาย")}</p><div class="session-meta"><span class="session-code">${escapeHtml(s.code||s.id)}</span><span class="session-state ${s.isOpen===false?"closed":"open"}">${s.isOpen===false?"ปิดรับ":"เปิดรับ"}</span></div><div class="session-card-actions"><button class="btn btn-ghost btn-sm" data-session-qr="${s.id}">QR</button><button class="btn btn-ghost btn-sm" data-session-toggle="${s.id}">${s.isOpen===false?"เปิดรับ":"ปิดรับ"}</button><button class="btn btn-ghost btn-sm" data-session-edit="${s.id}">แก้ไข</button></div></article>`).join(""):`<div style="color:#7d8da2">ยังไม่มี Session</div>`;
+  wrap.innerHTML=state.sessions.length?state.sessions.map(s=>`<article class="session-card"><h4>${escapeHtml(s.name)}</h4><p>${escapeHtml(s.description||"ไม่มีคำอธิบาย")}</p><div class="session-meta"><span class="session-code">${escapeHtml(s.code||s.id)}</span><span class="session-state ${s.isOpen===false?"closed":"open"}">${s.isOpen===false?"ปิดรับ":"เปิดรับ"}</span></div><div class="session-card-actions"><button class="btn btn-ghost btn-sm" data-session-qr="${s.id}">QR</button><button class="btn btn-ghost btn-sm" data-session-toggle="${s.id}">${s.isOpen===false?"เปิดรับ":"ปิดรับ"}</button><button class="btn btn-ghost btn-sm" data-session-edit="${s.id}">แก้ไข</button><button class="btn btn-soft-danger btn-sm" data-session-clear="${s.id}">ลบผลลัพธ์</button><button class="btn btn-soft-danger btn-sm" data-session-delete="${s.id}">ลบทั้ง Session</button></div></article>`).join(""):`<div style="color:#7d8da2">ยังไม่มี Session</div>`;
   $$("[data-session-qr]").forEach(b=>b.addEventListener("click",()=>showQr(b.dataset.sessionQr)));
   $$("[data-session-toggle]").forEach(b=>b.addEventListener("click",()=>toggleSession(b.dataset.sessionToggle)));
   $$("[data-session-edit]").forEach(b=>b.addEventListener("click",()=>openSessionModal(b.dataset.sessionEdit)));
+  $$("[data-session-clear]").forEach(b=>b.addEventListener("click",()=>deleteSessionResponses(b.dataset.sessionClear)));
+  $$("[data-session-delete]").forEach(b=>b.addEventListener("click",()=>deleteSessionAndData(b.dataset.sessionDelete)));
 }
 function openSessionModal(id=""){const s=state.sessions.find(x=>x.id===id);$("#sessionEditId").value=s?.id||"";$("#sessionName").value=s?.name||"";$("#sessionCode").value=s?.code||"";$("#sessionDescription").value=s?.description||"";$("#sessionOpen").value=String(s?.isOpen!==false);$("#sessionModalTitle").textContent=s?"แก้ไข Session":"สร้าง Session";openModal("#modalSession");}
 async function saveSession(){
@@ -326,10 +376,10 @@ function sessionRows(id){return state.responses.filter(r=>r.sessionId===id);}
 function renderTeamDNA(){
   const a=$("#dnaSessionA").value,b=$("#dnaSessionB").value;if(!a&&!b)return;
   const sa=state.sessions.find(s=>s.id===a),sb=state.sessions.find(s=>s.id===b),avA=averageScores(sessionRows(a)),avB=averageScores(sessionRows(b));
-  if(charts.team)charts.team.destroy();const datasets=[];
-  if(a)datasets.push({label:sa?.name||"A",data:[avA.think,avA.fight,avA.fine,avA.do],borderColor:"#75a0ff",backgroundColor:"rgba(66,108,255,.12)",pointBackgroundColor:"#75a0ff",borderWidth:2,fill:true});
-  if(b)datasets.push({label:sb?.name||"B",data:[avB.think,avB.fight,avB.fine,avB.do],borderColor:"#ff8e9b",backgroundColor:"rgba(255,69,93,.08)",pointBackgroundColor:"#ff8e9b",borderWidth:2,fill:true});
-  charts.team=new Chart($("#teamRadar"),{type:"radar",data:{labels:["THINK","FIGHT","FINE","DO"],datasets},options:{...baseChartOptions(),plugins:{legend:{display:true,labels:{color:"#c3cfdf",usePointStyle:true}}}}});
+  const datasets=[];
+  if(a)datasets.push({label:sa?.name||"A",data:[avA.think,avA.fight,avA.fine,avA.do],borderColor:"#75a0ff",backgroundColor:"rgba(66,108,255,.12)",pointBackgroundColor:"#75a0ff",pointBorderColor:"#07111f",pointBorderWidth:2,borderWidth:3,fill:true});
+  if(b)datasets.push({label:sb?.name||"B",data:[avB.think,avB.fight,avB.fine,avB.do],borderColor:"#ff8e9b",backgroundColor:"rgba(255,69,93,.08)",pointBackgroundColor:"#ff8e9b",pointBorderColor:"#07111f",pointBorderWidth:2,borderWidth:3,fill:true});
+  buildAnimatedRadar($("#teamRadar"),datasets,"team",{plugins:{legend:{display:true,labels:{color:"#c3cfdf",usePointStyle:true,font:{family:"Prompt"}}}}});
   const target=a?avA:avB;const sorted=COLORS.slice().sort((x,y)=>target[y]-target[x]),high=sorted[0],low=sorted.at(-1);
   $("#dnaInsight").innerHTML=`<div class="dna-note"><b>พลังเด่นของทีม</b><p><span style="color:${META()[high].color}">${META()[high].label}</span> สูงสุดเฉลี่ย ${target[high]}% — ${META()[high].teamwork}</p></div><div class="dna-note"><b>พลังที่มีน้อยที่สุด</b><p><span style="color:${META()[low].color}">${META()[low].label}</span> เฉลี่ย ${target[low]}% ควรเพิ่มบทบาท/มุมมองแบบ ${META()[low].thai} ในทีม</p></div><div class="dna-note"><b>ข้อเสนอแนะ</b><p>${teamAdvice(target)}</p></div>`;
 }
@@ -349,6 +399,69 @@ async function exportPdf(){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});doc.setFontSize(16);doc.text("Talent Color Activity Summary",14,14);doc.setFontSize(10);
   const rows=filteredResponses();doc.text(`Participants: ${rows.length}`,14,22);const counts=COLORS.map(k=>`${META()[k].label}: ${rows.filter(r=>r.dominant===k).length}`).join("   ");doc.text(counts,14,29);
   const canvas=$("#adminRadar");const img=canvas.toDataURL("image/png",1);doc.addImage(img,"PNG",14,36,90,78);doc.text("See exported CSV/XLSX for participant-level detail.",115,45);doc.save(`talent-color-summary-${Date.now()}.pdf`);
+}
+
+async function removeResponsesByIds(ids){
+  const unique=[...new Set((ids||[]).map(String))];
+  if(!unique.length)return 0;
+  if(state.demoMode){
+    let arr=JSON.parse(localStorage.getItem("talentColorDemoResponses")||"[]");
+    arr=arr.filter(r=>!unique.includes(String(r.id)));
+    localStorage.setItem("talentColorDemoResponses",JSON.stringify(arr));
+  }else{
+    for(const id of unique) await fb.fsFns.deleteDoc(fb.fsFns.doc(fb.db,"responses",id));
+  }
+  state.responses=state.responses.filter(r=>!unique.includes(String(r.id)));
+  state.selectedResponseIds=state.selectedResponseIds.filter(id=>!unique.includes(String(id)));
+  return unique.length;
+}
+async function deleteResponse(id){
+  const row=state.responses.find(r=>String(r.id)===String(id));
+  if(!row)return;
+  if(!confirm(`ลบข้อมูลของ ${row.fullName||"ผู้ใช้งาน"} ใช่หรือไม่?`))return;
+  const removed=await removeResponsesByIds([id]);
+  renderAdmin();
+  toast(`ลบข้อมูลผู้ใช้แล้ว ${removed} รายการ`);
+}
+async function deleteSelectedResponses(){
+  const ids=[...state.selectedResponseIds];
+  if(!ids.length)return toast("กรุณาเลือกข้อมูลก่อน");
+  if(!confirm(`ลบข้อมูลผู้เข้าร่วมที่เลือก ${ids.length} รายการ ใช่หรือไม่?`))return;
+  const removed=await removeResponsesByIds(ids);
+  renderAdmin();
+  toast(`ลบข้อมูลที่เลือกแล้ว ${removed} รายการ`);
+}
+async function deleteSessionResponses(sessionId){
+  if(!sessionId){toast("กรุณาเลือก Session ก่อน");return;}
+  const session=state.sessions.find(s=>s.id===sessionId);
+  const rows=state.responses.filter(r=>r.sessionId===sessionId);
+  if(!rows.length){toast("Session นี้ยังไม่มีข้อมูลให้ลบ");return;}
+  if(!confirm(`ลบข้อมูลผู้เข้าร่วมทั้งหมด ${rows.length} รายการ ของ ${session?.name||'Session นี้'} ใช่หรือไม่?`))return;
+  const removed=await removeResponsesByIds(rows.map(r=>r.id));
+  renderAdmin();
+  toast(`ลบข้อมูล ${removed} รายการแล้ว`);
+}
+async function deleteSessionAndData(sessionId){
+  if(!sessionId){toast("กรุณาเลือก Session ก่อน");return;}
+  const session=state.sessions.find(s=>s.id===sessionId);
+  if(!session)return toast("ไม่พบ Session นี้");
+  const rows=state.responses.filter(r=>r.sessionId===sessionId);
+  if(!confirm(`ต้องการลบทั้ง Session "${session.name}" และข้อมูลผู้เข้าร่วม ${rows.length} รายการ ใช่หรือไม่?`))return;
+  await removeResponsesByIds(rows.map(r=>r.id));
+  if(state.demoMode){
+    const sessions=JSON.parse(localStorage.getItem("talentColorSessions")||"[]").filter(s=>s.id!==sessionId);
+    localStorage.setItem("talentColorSessions",JSON.stringify(sessions));
+  }else{
+    await fb.fsFns.deleteDoc(fb.fsFns.doc(fb.db,"sessions",sessionId));
+  }
+  state.sessions=state.sessions.filter(s=>s.id!==sessionId);
+  if($("#adminSessionFilter")?.value===sessionId) $("#adminSessionFilter").value="";
+  if($("#dnaSessionA")?.value===sessionId) $("#dnaSessionA").value="";
+  if($("#dnaSessionB")?.value===sessionId) $("#dnaSessionB").value="";
+  fillSessionSelectors();
+  renderSessions();
+  renderAdmin();
+  toast(`ลบ Session ${session.name} เรียบร้อยแล้ว`);
 }
 
 async function loadAdminConfig(){
@@ -385,24 +498,59 @@ function renderProjector(){
 }
 
 async function saveResultCard(){
-  const target=$("#shareCard");
-  toast("กำลังสร้าง Result Card แบบ 16:9…");
+  const source=$("#shareCard");
+  if(!source||!state.result)return toast("ยังไม่มีผลลัพธ์ให้สร้างการ์ด");
+  toast("กำลังสร้าง Result Card แนวนอน…");
+  let host=null,exportChart=null;
   try{
-    target.classList.add("exporting");
-    charts.result?.resize?.();
-    await new Promise(r=>setTimeout(r,280));
-    const canvas=await html2canvas(target,{backgroundColor:"#06101c",scale:1.6,useCORS:true,logging:false,width:1600,height:900,windowWidth:1600,windowHeight:900});
-    const a=document.createElement("a");
+    host=document.createElement("div");
+    host.className="export-clone-host";
+    host.style.width="1920px";host.style.height="1080px";
+    const clone=source.cloneNode(true);
+    clone.classList.add("exporting");
+    host.appendChild(clone);
+    document.body.appendChild(host);
+    const cloneCanvas=clone.querySelector("#resultRadar");
+    if(cloneCanvas && window.Chart && state.result?.scores){
+      cloneCanvas.width=620;cloneCanvas.height=620;cloneCanvas.classList.add("export-chart-canvas");
+      exportChart=await renderStaticRadar(cloneCanvas,state.result.scores,16);
+    }
+    const canvas=await captureElementPng(clone,{backgroundColor:"#06111e",width:1920,height:1080});
     const safeName=(state.profile.fullName||"color-me").replace(/[\/:*?"<>|]+/g,"-");
-    a.download=`COLOR-ME-${safeName}-${Date.now()}.png`;
-    a.href=canvas.toDataURL("image/png",1);
-    a.click();
-  }catch(e){
-    console.error(e);toast("สร้าง Result Card ไม่สำเร็จ");
-  }finally{
-    target.classList.remove("exporting");
-    charts.result?.resize?.();
-  }
+    downloadCanvasPng(canvas,`COLOR-ME-LANDSCAPE-${safeName}-${Date.now()}.png`);
+    toast("สร้าง Result Card แล้ว");
+  }catch(e){console.error(e);toast("สร้าง Result Card ไม่สำเร็จ");}
+  finally{exportChart?.destroy?.();host?.remove?.();}
+}
+async function saveStoryCard(){
+  const data=resultDataForExport();if(!data)return toast("ยังไม่มีผลลัพธ์ให้สร้างการ์ด");
+  toast("กำลังสร้างการ์ดมือถือ 9:16…");
+  let host=null,chart=null;
+  try{
+    const primary=data.primary,secondary=data.secondary,r=data.result;
+    host=createExportHost(`<div class="story-export-card"><div class="story-brand"><div><span class="story-mini">COLOR SIGNATURE</span><h1 style="color:${primary.color}">${primary.title}</h1><p>${escapeHtml(data.fullName)}</p><p style="font-size:20px">${escapeHtml(data.meta)}</p></div><div class="story-pill-row">${exportScorePills(r.scores)}</div></div><div class="story-panel"><span class="eyebrow">POWER SUMMARY</span><h3>พลังหลัก ${primary.label} · พลังรอง ${secondary.label}</h3><div class="story-word-list">${exportWordPills(r.selectedWords)}</div></div><div class="story-panel story-chart"><span class="eyebrow">YOUR RADAR</span><h3>กราฟพลัง 4 สี</h3><canvas id="storyExportRadar"></canvas></div><div class="story-grid"><div class="story-panel"><span class="eyebrow">PERSONAL INSIGHT</span><h3>ลายเซ็นความเป็นคุณ</h3><div class="story-insight-list"><div class="story-card-item"><b>จุดแข็งเด่น</b><p>${escapeHtml(primary.strength)}</p></div><div class="story-card-item"><b>ทำงานร่วมกับทีม</b><p>${escapeHtml(primary.teamwork)}</p></div><div class="story-card-item"><b>พลังเสริมจาก ${secondary.label}</b><p>${escapeHtml(secondary.strength)}</p></div></div></div><div class="story-panel"><span class="eyebrow">COMMUNICATION GUIDE</span><h3>คุณควรสื่อสารอย่างไร</h3><div class="story-comm-list">${COLORS.map(k=>`<div class="story-card-item"><b style="color:${META()[k].color}">${META()[k].label}</b><p>${escapeHtml(COMMUNICATION[r.dominant][k])}</p></div>`).join("")}</div></div></div><div class="story-footer"><div class="signature"><b>COLOR ME</b><span>5 WORDS · 4 COLORS</span></div><div class="signature" style="text-align:right">${escapeHtml(data.dateText)}<br/>Result card for social sharing</div></div></div>`,1080,1920);
+    chart=await renderStaticRadar(host.querySelector('#storyExportRadar'),r.scores,18);
+    const canvas=await captureElementPng(host.firstElementChild,{backgroundColor:'#06111e',width:1080,height:1920});
+    const safeName=data.fullName.replace(/[\/:*?"<>|]+/g,'-');
+    downloadCanvasPng(canvas,`COLOR-ME-STORY-${safeName}-${Date.now()}.png`);
+    toast("สร้างการ์ดมือถือ 9:16 แล้ว");
+  }catch(e){console.error(e);toast("สร้างการ์ดมือถือไม่สำเร็จ");}
+  finally{chart?.destroy?.();host?.remove?.();}
+}
+async function saveCertificateCard(){
+  const data=resultDataForExport();if(!data)return toast("ยังไม่มีผลลัพธ์ให้สร้างการ์ด");
+  toast("กำลังสร้างการ์ดที่ระลึก / ประกาศนียบัตร…");
+  let host=null,chart=null;
+  try{
+    const primary=data.primary,secondary=data.secondary,r=data.result;
+    host=createExportHost(`<div class="certificate-export-card"><div class="gold-frame"></div><div class="certificate-header"><span class="eyebrow">CERTIFICATE OF COLOR SIGNATURE</span><h1>ประกาศนียบัตรลายเซ็นความเป็นคุณ</h1><p>เอกสารเชิงสร้างสรรค์นี้สรุปพลังเด่น บุคลิกการทำงาน การสื่อสาร และกราฟพลัง 4 สี จากกิจกรรม COLOR ME เพื่อใช้สะท้อนตัวตนและเก็บเป็นที่ระลึก</p></div><div class="certificate-name"><div class="label">ขอมอบให้แก่</div><h2>${escapeHtml(data.fullName)}</h2><div class="underline"></div></div><div class="certificate-main"><div class="certificate-panel"><div class="card-head compact-head"><div><span class="eyebrow">YOUR RADAR</span><h3>กราฟพลัง 4 สี</h3></div><span class="mini-tag">0–100%</span></div><div class="certificate-chart"><canvas id="certificateExportRadar"></canvas></div><div class="certificate-word-list">${exportWordPills(r.selectedWords,'certificate-word')}</div></div><div class="certificate-panel certificate-meta"><span class="eyebrow">SIGNATURE RESULT</span><h3 style="color:${primary.color}">${primary.title}</h3><div class="subtitle">พลังรอง <b>${secondary.label}</b> · ${secondary.thai} ช่วยเติมเต็มสไตล์ของคุณให้มีทั้งมุม ${primary.thai} และ ${secondary.thai} อย่างโดดเด่น</div><div class="certificate-score-row">${exportScorePills(r.scores,'certificate-score')}</div><div class="certificate-grid"><div class="certificate-block"><b>ลายเซ็นความเป็นคุณ</b><p>${escapeHtml(primary.strength)}</p></div><div class="certificate-block"><b>เมื่อทำงานร่วมกับทีม</b><p>${escapeHtml(primary.teamwork)}</p></div><div class="certificate-block"><b>คุณควรสื่อสารอย่างไร</b><p>${escapeHtml(COMMUNICATION[r.dominant][r.secondary]||COMMUNICATION[r.dominant].think)}</p></div><div class="certificate-block"><b>จุดที่ควรระวัง</b><p>${escapeHtml(primary.watch)}</p></div></div></div></div><div class="certificate-footer"><div class="certificate-sign"><i></i><b>${escapeHtml(data.meta||'COLOR ME Activity')}</b><span>Session / Organization</span></div><div class="certificate-sign"><i></i><b>${escapeHtml(data.dateText)}</b><span>วันที่ออกผลลัพธ์</span></div><div class="certificate-sign"><i></i><b>COLOR ME</b><span>Signature Experience</span></div></div></div>`,2000,1414);
+    chart=await renderStaticRadar(host.querySelector('#certificateExportRadar'),r.scores,18);
+    const canvas=await captureElementPng(host.firstElementChild,{backgroundColor:'#06111e',width:2000,height:1414});
+    const safeName=data.fullName.replace(/[\/:*?"<>|]+/g,'-');
+    downloadCanvasPng(canvas,`COLOR-ME-CERTIFICATE-${safeName}-${Date.now()}.png`);
+    toast("สร้างการ์ดที่ระลึกแล้ว");
+  }catch(e){console.error(e);toast("สร้างการ์ดที่ระลึกไม่สำเร็จ");}
+  finally{chart?.destroy?.();host?.remove?.();}
 }
 
 function switchTab(name){$$(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));$$(".admin-tab-pane").forEach(p=>p.classList.toggle("active",p.id===`tab-${name}`));if(name==="teamdna")renderTeamDNA();}
@@ -412,16 +560,16 @@ function wireEvents(){
   $$("[data-go-home]").forEach(b=>b.addEventListener("click",()=>showScreen("#screenHome")));$$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));$$(".modal-x").forEach(b=>b.addEventListener("click",()=>closeModal(b.closest(".modal"))));
   $("#profileForm").addEventListener("submit",e=>{e.preventDefault();state.profile={fullName:$("#fullName").value.trim(),organization:$("#organization").value.trim(),email:$("#email").value.trim()};renderWords();showScreen("#screenWords");});
   $("#btnAnalyze").addEventListener("click",async()=>{if(state.selected.length!==5)return;$("#btnAnalyze").disabled=true;state.result=analyze();try{await checkDuplicateAndSave(state.result);}catch(e){$("#btnAnalyze").disabled=false;return toast(e.message);}renderReveal();showScreen("#screenReveal");setTimeout(()=>finishReveal(),3500);setTimeout(()=>{renderResult();showScreen("#screenResult");$("#btnAnalyze").disabled=false;},3900);});
-  $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});$("#btnSaveImage").addEventListener("click",saveResultCard);
+  $("#btnRestart").addEventListener("click",()=>{state.selected=[];state.result=null;renderWords();showScreen("#screenWords");});$("#btnSaveImage").addEventListener("click",saveResultCard);$("#btnSaveStory").addEventListener("click",saveStoryCard);$("#btnSaveCertificate").addEventListener("click",saveCertificateCard);
   $("#btnBackToProfile")?.addEventListener("click",()=>showScreen("#screenProfile"));$("#btnBackToProfileBottom")?.addEventListener("click",()=>showScreen("#screenProfile"));
 
   $("#adminLoginForm").addEventListener("submit",async e=>{e.preventDefault();$("#adminLoginError").textContent="";try{await adminLogin($("#adminEmail").value.trim(),$("#adminPassword").value);}catch(ex){$("#adminLoginError").textContent=ex.message||"เข้าสู่ระบบไม่สำเร็จ";}});
   $("#btnDemoDashboard").addEventListener("click",loadDemoAdmin);$("#btnAdminLogout").addEventListener("click",async()=>{state.unsubscribeResponses?.();state.unsubscribeSessions?.();if(state.firebaseReady&&fb.auth.currentUser)await fb.authFns.signOut(fb.auth);state.currentAdmin=null;showScreen("#screenHome");});
   $$(".admin-tab").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
-  $("#adminSessionFilter").addEventListener("change",renderAdmin);$("#adminSearch").addEventListener("input",renderTable);$("#adminColorFilter").addEventListener("change",renderTable);
+  $("#adminSessionFilter").addEventListener("change",()=>{clearResponseSelection();renderAdmin();});$("#adminSearch").addEventListener("input",()=>{clearResponseSelection();renderTable();});$("#adminColorFilter").addEventListener("change",()=>{clearResponseSelection();renderTable();});$("#selectAllResponses").addEventListener("change",e=>toggleAllFilteredResponses(e.target.checked));$("#selectAllResponsesHead").addEventListener("change",e=>toggleAllFilteredResponses(e.target.checked));$("#btnDeleteSelected").addEventListener("click",deleteSelectedResponses);
   $("#btnQr").addEventListener("click",()=>showQr(selectedSessionId()));$("#btnExportCsv").addEventListener("click",exportCsv);$("#btnExportXlsx").addEventListener("click",exportXlsx);$("#btnExportPdf").addEventListener("click",exportPdf);
   $("#btnNewSession").addEventListener("click",()=>openSessionModal());$("#sessionForm").addEventListener("submit",async e=>{e.preventDefault();await saveSession();closeModal($("#modalSession"));toast("บันทึก Session แล้ว");});
-  $("#dnaSessionA").addEventListener("change",renderTeamDNA);$("#dnaSessionB").addEventListener("change",renderTeamDNA);
+  $("#dnaSessionA").addEventListener("change",renderTeamDNA);$("#dnaSessionB").addEventListener("change",renderTeamDNA);$("#btnDeleteDnaA").addEventListener("click",()=>deleteSessionResponses($("#dnaSessionA").value));$("#btnDeleteDnaB").addEventListener("click",()=>deleteSessionResponses($("#dnaSessionB").value));
   $("#gameSettingsForm").addEventListener("submit",async e=>{e.preventDefault();const words=WORDS().map(w=>({...w,primary:$(`[data-map-primary="${w.id}"]`).value,secondary:$(`[data-map-secondary="${w.id}"]`).value}));await saveConfig({gameTitle:$("#setGameTitle").value.trim(),gameTagline:$("#setGameTagline").value.trim(),heroSubtitle:$("#setHeroSubtitle").value.trim(),logoUrl:$("#setLogoUrl").value.trim(),words});});
   $("#privacySettingsForm").addEventListener("submit",async e=>{e.preventDefault();await saveConfig({privacyNotice:$("#setPrivacyNotice").value.trim(),retentionDays:Number($("#setRetentionDays").value||365),privacyEmail:$("#setPrivacyEmail").value.trim()});});
   $("#btnDeleteExpired").addEventListener("click",deleteExpired);$("#btnProjector").addEventListener("click",openProjector);$("#btnCloseProjector").addEventListener("click",closeProjector);

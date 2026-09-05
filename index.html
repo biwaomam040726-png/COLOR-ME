@@ -208,8 +208,10 @@
         </div>
       </div>
 
-      <div class="result-actions compact-result-actions">
-        <button id="btnSaveImage" class="btn btn-primary" type="button">สร้าง Result Card</button>
+      <div class="result-actions compact-result-actions wrap-actions">
+        <button id="btnSaveImage" class="btn btn-primary" type="button">การ์ดแนวนอน</button>
+        <button id="btnSaveStory" class="btn btn-ghost" type="button">การ์ดมือถือ 9:16</button>
+        <button id="btnSaveCertificate" class="btn btn-ghost" type="button">การ์ดที่ระลึก / ประกาศนียบัตร</button>
         <button id="btnRestart" class="btn btn-ghost" type="button">ทำอีกครั้ง</button>
       </div>
       <p class="disclaimer result-disclaimer">กิจกรรมนี้เป็นเครื่องมือสะท้อนตัวตนเพื่อการเรียนรู้และการทำงานร่วมกัน ไม่ใช่แบบทดสอบทางจิตวิทยามาตรฐาน</p>
@@ -286,7 +288,7 @@
         <div class="panel dna-panel">
           <div class="table-tools">
             <div><span class="eyebrow">TEAM DNA</span><h3>เปรียบเทียบ DNA ของทีม</h3></div>
-            <div class="filters"><select id="dnaSessionA"></select><select id="dnaSessionB"></select></div>
+            <div class="filters teamdna-filters"><select id="dnaSessionA"></select><select id="dnaSessionB"></select><button id="btnDeleteDnaA" class="btn btn-danger btn-sm" type="button">ลบข้อมูล Session A</button><button id="btnDeleteDnaB" class="btn btn-danger btn-sm" type="button">ลบข้อมูล Session B</button></div>
           </div>
           <div class="dna-grid">
             <div class="chart-wrap"><canvas id="teamRadar"></canvas></div>
@@ -301,7 +303,12 @@
             <div><span class="eyebrow">PARTICIPANTS</span><h3>ผลรายบุคคล</h3></div>
             <div class="filters"><input id="adminSearch" placeholder="ค้นหาชื่อ / หน่วยงาน / อีเมล" /><select id="adminColorFilter"><option value="">ทุกสี</option><option value="think">THINK · น้ำเงิน</option><option value="fight">FIGHT · แดง</option><option value="fine">FINE · เหลือง</option><option value="do">DO · เขียว</option></select></div>
           </div>
-          <div class="table-scroll"><table><thead><tr><th>ผู้เข้าร่วม</th><th>Session</th><th>หน่วยงาน/กลุ่ม</th><th>5 คำ</th><th>สีเด่น</th><th>คะแนน 4 สี</th><th>เวลา</th><th></th></tr></thead><tbody id="adminTableBody"></tbody></table></div>
+          <div class="bulk-toolbar">
+            <label class="checkbox-inline"><input id="selectAllResponses" type="checkbox" /> เลือกทั้งหมดในรายการที่กรองอยู่</label>
+            <span id="selectedRowsCount" class="bulk-count">ยังไม่ได้เลือก</span>
+            <button id="btnDeleteSelected" class="btn btn-danger btn-sm" type="button" disabled>ลบข้อมูลที่เลือก</button>
+          </div>
+          <div class="table-scroll"><table><thead><tr><th class="col-check"><input id="selectAllResponsesHead" type="checkbox" aria-label="เลือกทั้งหมด" /></th><th>ผู้เข้าร่วม</th><th>Session</th><th>หน่วยงาน/กลุ่ม</th><th>5 คำ</th><th>สีเด่น</th><th>คะแนน 4 สี</th><th>เวลา</th><th>จัดการ</th></tr></thead><tbody id="adminTableBody"></tbody></table></div>
         </article>
       </div>
 
