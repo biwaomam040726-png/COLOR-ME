@@ -2,7 +2,6 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -12,25 +11,42 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // ผู้เข้าร่วมกิจกรรม
+    // Public configuration: participants can read, only admins can write.
+    match /publicConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Sessions are public-readable so QR links can load their name/open state.
+    // Only admins create/update/delete sessions.
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Response document id is deterministic from session + participant code.
+    // Because update is denied to participants, the same code cannot overwrite
+    // an existing response in the same session.
     match /responses/{responseId} {
-      // ผู้เข้าร่วมสร้างผลของตัวเองได้ แต่แก้/ลบไม่ได้
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.consent == true
         && request.resource.data.fullName is string
         && request.resource.data.fullName.size() > 0
+        && request.resource.data.participantCode is string
+        && request.resource.data.participantCode.size() > 0
+        && request.resource.data.sessionId is string
         && request.resource.data.selectedWords is list
-        && request.resource.data.selectedWords.size() == 5;
+        && request.resource.data.selectedWords.size() == 5
+        && exists(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId))
+        && get(/databases/$(database)/documents/sessions/$(request.resource.data.sessionId)).data.isOpen == true;
 
-      // เฉพาะแอดมินอ่าน / จัดการข้อมูล
       allow read, update, delete: if isAdmin();
     }
 
-    // เอกสารกำหนดสิทธิ์ผู้ดูแล
     match /admins/{adminUid} {
       allow read: if isSignedIn() && (request.auth.uid == adminUid || isAdmin());
-      allow write: if false; // ให้สร้าง/แก้ผ่าน Firebase Console เท่านั้น
+      allow write: if false;
     }
   }
 }

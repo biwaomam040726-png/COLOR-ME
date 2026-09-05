@@ -1,54 +1,59 @@
-# COLOR ME — เกมรู้จักตัวเองผ่าน 5 คำ
+# COLOR ME V2 — เกมรู้จักตัวเองผ่าน 5 คำ
 
-เว็บกิจกรรมแบบ Static Web App สำหรับ GitHub Pages + Firebase
+Static Web App สำหรับ **GitHub Pages + Firebase Authentication + Cloud Firestore**
 
-## สิ่งที่มีในชุดนี้
+เวอร์ชันนี้เพิ่มระบบสำหรับใช้งานกิจกรรมจริงครบตามรายการ:
 
-- หน้าเริ่มเกมแบบ Premium / Glass UI + Animation
-- เก็บข้อมูลผู้เข้าร่วมก่อนเริ่ม
-- เลือกคำได้ **5 คำจาก 22 คำ**
-- ประมวลผลพลัง 4 สี
-  - THINK — น้ำเงิน
-  - FIGHT — แดง
-  - FINE — เหลือง
-  - DO — เขียว
-- กราฟ Radar (Spider chart) รายบุคคล
-- จุดแข็ง / การทำงานร่วมกับทีม / จุดที่ควรระวัง
-- บันทึกผลเป็น PNG
-- Admin Login ด้วย Firebase Authentication
-- Admin Dashboard
-  - จำนวนผู้เข้าร่วม
-  - จำนวนสีเด่นแต่ละสี
-  - Radar เฉลี่ยทั้งกลุ่ม
-  - Doughnut สัดส่วนสีเด่น
-  - ตารางรายบุคคล
-  - ค้นหา / กรองสี
-  - เปิดดู Radar รายคน
-  - Export CSV
-  - QR Code สำหรับเปิดหน้ากิจกรรม
-- เก็บข้อมูลใน Cloud Firestore
-- รองรับมือถือ
-- Demo mode สำหรับพรีวิวก่อนตั้งค่า Firebase
+## ฟีเจอร์ V2
 
-> หมายเหตุ: ระบบนี้เป็นกิจกรรมเพื่อ Self-reflection / Team learning ไม่ใช่แบบทดสอบทางจิตวิทยามาตรฐาน
+### ฝั่งผู้เข้าร่วม
+- เลือก 5 คำจาก 22 คำ
+- Session / รุ่นกิจกรรมผ่าน URL เช่น `?session=SESSION_ID`
+- QR แยก Session
+- Admin เปิด/ปิดรับคำตอบได้
+- ป้องกัน 1 รหัสผู้เข้าร่วมทำซ้ำใน Session เดียว
+- Animation “วงล้อสีประกอบตัว” ก่อนเฉลย
+- Result Radar / Spider Chart
+- สีหลัก + สีรอง
+- จุดแข็ง / จุดควรระวัง
+- คู่มือสื่อสารกับ THINK / FIGHT / FINE / DO
+- สร้าง Premium Result Card เป็น PNG
+- Privacy Notice + Consent
+
+### ฝั่ง Admin
+- Dashboard แบบ Real-time
+- กรองตาม Session
+- สร้าง/แก้ไข Session
+- เปิด/ปิด Session
+- QR แยก Session
+- Projector Mode ไม่แสดงชื่อ
+- Team DNA
+- เปรียบเทียบ Radar ของ 2 Session
+- วิเคราะห์สีเด่น / สีที่ขาด / สมดุลทีม
+- ดูผลรายบุคคลพร้อม Radar
+- ค้นหา / กรองสี
+- Export CSV
+- Export Excel (.xlsx)
+- Export PDF Summary
+- ตั้งชื่อเกม / Tagline / ข้อความหน้าแรก
+- Mapping สีหลักและสีรองของ 22 คำโดยไม่แก้โค้ด
+- Privacy Notice
+- กำหนด Data Retention เป็นจำนวนวัน
+- ปุ่มลบข้อมูลที่เกินระยะเวลาทันที
 
 ---
 
-## 1. ตั้งค่า Firebase
+# การตั้งค่า Firebase
 
-### 1.1 สร้าง Project
-เข้า Firebase Console แล้วสร้าง Project ใหม่
+## 1) สร้าง Firebase Project
 
-### 1.2 เพิ่ม Web App
-Project settings > Your apps > Add app > Web
+Firebase Console > Add project
 
-คัดลอก `firebaseConfig`
+## 2) เพิ่ม Web App
 
-เปิดไฟล์:
+Project Settings > Your apps > Web
 
-`firebase-config.js`
-
-แล้วแทนค่า:
+คัดลอกค่าไปใส่ `firebase-config.js`
 
 ```js
 export const firebaseConfig = {
@@ -61,53 +66,95 @@ export const firebaseConfig = {
 };
 ```
 
-### 1.3 เปิด Authentication
-Firebase Console > Authentication > Sign-in method
+## 3) Authentication
 
-เปิด 2 Provider:
+เปิด Sign-in providers:
 
-1. **Anonymous** — สำหรับผู้เข้าร่วมกิจกรรม
-2. **Email/Password** — สำหรับ Admin
+- Anonymous
+- Email/Password
 
-### 1.4 สร้าง Firestore
-Firestore Database > Create database
+Anonymous ใช้สำหรับผู้เข้าร่วม
+Email/Password ใช้สำหรับ Admin
 
-เลือก Region ที่เหมาะสมกับผู้ใช้ของคุณ
+## 4) Firestore Database
 
-### 1.5 ใส่ Security Rules
-Firestore > Rules
+สร้าง Cloud Firestore
 
-คัดลอกจากไฟล์ `firestore.rules` แล้วกด Publish
+จากนั้นเปิด Rules และวางเนื้อหาจาก:
 
----
-
-## 2. สร้างบัญชี Admin
-
-1. Firebase Console > Authentication > Users > Add user
-2. สร้างอีเมลและรหัสผ่านของ Admin
-3. คัดลอก **UID** ของผู้ใช้นั้น
-4. Firestore > Start collection
-5. Collection ID = `admins`
-6. Document ID = **UID ของ Admin**
-7. เพิ่ม field เช่น:
-   - `role` = `admin`
-   - `name` = `ผู้ดูแลกิจกรรม`
-
-จากนั้นบัญชีนี้จะเข้า `/หน้า Admin` ในเว็บได้
+`firestore.rules`
 
 ---
 
-## 3. Collection ที่ระบบใช้
+# สร้าง Admin
 
-### `responses`
-ตัวอย่างเอกสาร:
+1. Firebase Authentication > Users > Add user
+2. สร้าง Email/Password
+3. คัดลอก UID
+4. Firestore > สร้าง Collection ชื่อ `admins`
+5. Document ID = UID ของ Admin
+6. field:
+   - `role`: `admin`
+   - `name`: ชื่อผู้ดูแล
+
+---
+
+# สำคัญ: ต้องสร้าง Session ก่อนใช้งานจริง
+
+หลัง Login Admin:
+
+1. ไปแท็บ **รอบกิจกรรม**
+2. กด `+ สร้าง Session`
+3. ตั้งชื่อ เช่น
+   - รุ่นที่ 1 · สตท.1
+   - รุ่นที่ 2 · สตท.2
+   - รุ่นที่ 3 · สตท.10
+4. ตั้งรหัส
+5. เลือก `เปิดรับ`
+6. กด QR
+7. ให้ผู้เข้าร่วมสแกน
+
+URL จะเป็นรูปแบบ:
+
+`https://USERNAME.github.io/REPO/?session=SESSION_ID`
+
+---
+
+# ป้องกันการทำซ้ำ
+
+ระบบสร้าง Document ID ของผลลัพธ์จาก:
+
+`SHA-256(sessionId + participantCode)`
+
+ดังนั้นรหัสเดียวกันสามารถทำได้อีกใน Session อื่น
+แต่ **ทำซ้ำใน Session เดิมไม่ได้**
+
+Firestore Rules อนุญาต `create` แต่ไม่อนุญาต `update`
+จึงไม่สามารถเขียนทับผลเดิมได้
+
+---
+
+# Firestore Collections
+
+## `sessions`
+ตัวอย่าง:
 
 ```json
 {
+  "name": "รุ่นที่ 1 · สตท.1",
+  "code": "R1-CAD1",
+  "description": "กิจกรรมช่วงเช้า",
+  "isOpen": true,
+  "createdAt": "timestamp"
+}
+```
+
+## `responses`
+```json
+{
   "fullName": "สมชาย ตัวอย่าง",
-  "organization": "กลุ่ม A",
+  "organization": "สตท.1",
   "participantCode": "A001",
-  "email": "",
   "selectedWords": ["คิด", "วางแผน", "วิเคราะห์", "เข้าใจ", "เป็นระบบ"],
   "scores": {
     "think": 48,
@@ -117,45 +164,45 @@ Firestore > Rules
   },
   "dominant": "think",
   "secondary": "do",
+  "sessionId": "...",
+  "sessionName": "รุ่นที่ 1 · สตท.1",
   "consent": true,
-  "uid": "firebase-anonymous-uid",
-  "createdAt": "server timestamp"
+  "createdAt": "timestamp"
 }
 ```
 
-### `admins`
-Document ID ต้องตรงกับ Firebase Authentication UID ของ Admin
+## `publicConfig/main`
+เก็บ:
+- ชื่อเกม
+- Tagline
+- ข้อความหน้าแรก
+- Privacy Notice
+- Data retention
+- Mapping 22 คำ
+
+## `admins/{UID}`
+กำหนดสิทธิ์ผู้ดูแล
 
 ---
 
-## 4. อัปขึ้น GitHub Pages
+# GitHub Pages
 
-### วิธีผ่านหน้าเว็บ GitHub
-1. สร้าง Repository ใหม่ เช่น `color-me-game`
-2. Upload ไฟล์ทั้งหมดจากโฟลเดอร์นี้ขึ้น Repository
-3. ไปที่ **Settings > Pages**
-4. Source: `Deploy from a branch`
-5. Branch: `main`
-6. Folder: `/ (root)`
+1. สร้าง GitHub Repository
+2. Upload ไฟล์ทั้งหมด
+3. Settings > Pages
+4. Source = Deploy from branch
+5. Branch = `main`
+6. Folder = `/ (root)`
 7. Save
-8. รอสักครู่ GitHub จะให้ URL เช่น
-
-`https://USERNAME.github.io/color-me-game/`
-
-กดปุ่ม `QR เข้าร่วม` ใน Dashboard เพื่อสร้าง QR จาก URL ที่กำลังเปิดอยู่
 
 ---
 
-## 5. ทดสอบในเครื่อง
+# ทดสอบในเครื่อง
 
-เพราะ `app.js` ใช้ ES Module ไม่ควรเปิดด้วย `file:///...`
+อย่าเปิดผ่าน `file:///`
 
-ใช้วิธีใดวิธีหนึ่ง:
+ใช้ VS Code Live Server หรือ:
 
-### VS Code
-ติดตั้ง Live Server แล้วคลิก `Open with Live Server`
-
-### Python
 ```bash
 python -m http.server 8080
 ```
@@ -166,44 +213,37 @@ python -m http.server 8080
 
 ---
 
-## 6. วิธีคิดคะแนน
+# Projector Mode
 
-คำแต่ละคำมี:
-- สีหลัก = 1.00 คะแนน
-- สีรอง = 0.35 คะแนน
+Admin เลือก Session ที่ Dashboard ก่อน แล้วกด **Projector Mode**
 
-เมื่อเลือกครบ 5 คำ ระบบรวมคะแนนและแปลงเป็นเปอร์เซ็นต์ 4 สี
+จะแสดง:
+- จำนวนผู้เข้าร่วม
+- THINK / FIGHT / FINE / DO
+- Radar เฉลี่ย
+- สีเด่น/สีที่ขาด
+- Team Insight
 
-ข้อดีคือกราฟไม่แข็งเป็นการนับ 0–5 เพียงอย่างเดียว และสะท้อน “มิติรอง” ของคำได้ด้วย
+ไม่แสดงชื่อผู้เข้าร่วม
 
-แก้ mapping ได้ใน `app.js` ที่ตัวแปร `WORDS`
-
----
-
-## 7. สิ่งที่แนะนำให้เพิ่มก่อนใช้จริงกับงานใหญ่
-
-- หน้า Consent / Privacy Notice ฉบับเต็ม
-- กำหนดรอบกิจกรรม เช่น รุ่น / ห้อง / Session ID
-- เปิด/ปิดรับคำตอบจาก Admin
-- จำกัด 1 ครั้งต่อรหัสผู้เข้าร่วม
-- QR แยกตาม Session
-- Dashboard เปรียบเทียบแต่ละกลุ่ม/หน่วยงาน
-- Export Excel และ PDF Report
-- Projector Mode สำหรับฉายผลรวมสดโดยไม่โชว์ชื่อ
-- ตั้งชื่อกิจกรรม/โลโก้/สีธีมจากหน้า Admin
-- ลบข้อมูลตามระยะเวลาที่กำหนด (Data retention)
-- ถ้าต้องการใช้เป็นแบบประเมินเชิงวิชาการจริง ควรผ่านการออกแบบข้อคำถามและตรวจสอบความเที่ยงตรง/ความเชื่อมั่นก่อน
+ข้อมูลอัปเดตแบบ Real-time เมื่อใช้ Firebase
 
 ---
 
-## โครงไฟล์
+# Data Retention
 
-```text
-talent-color-game/
-├─ index.html
-├─ styles.css
-├─ app.js
-├─ firebase-config.js
-├─ firestore.rules
-└─ README.md
-```
+Admin > Privacy
+
+กำหนดจำนวนวัน เช่น `365`
+
+ปุ่ม **ลบข้อมูลที่เกินกำหนดตอนนี้** จะลบผลที่เก่ากว่าจำนวนวันที่กำหนด
+
+> ถ้าต้องการลบอัตโนมัติโดยไม่ต้องกด Admin ควรเพิ่ม Firebase Cloud Functions / Scheduled Function ภายหลัง
+
+---
+
+# ข้อควรระวัง
+
+ระบบนี้เป็นเครื่องมือ Self-reflection / Team learning ไม่ใช่แบบทดสอบ MBTI จริง และไม่ใช่เครื่องมือวินิจฉัยทางจิตวิทยา
+
+หากต้องการใช้ในงานวิจัยหรือการประเมินบุคลิกภาพเชิงวิชาการ ควรพัฒนาข้อคำถาม ตรวจสอบ validity / reliability และกำหนด scoring model ตามระเบียบวิธีวิจัย
