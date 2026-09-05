@@ -323,4 +323,37 @@ function wireEvents(){
   $("#privacySettingsForm").addEventListener("submit",async e=>{e.preventDefault();await saveConfig({privacyNotice:$("#setPrivacyNotice").value.trim(),retentionDays:Number($("#setRetentionDays").value||365),privacyEmail:$("#setPrivacyEmail").value.trim()});});
   $("#btnDeleteExpired").addEventListener("click",deleteExpired);$("#btnProjector").addEventListener("click",openProjector);$("#btnCloseProjector").addEventListener("click",closeProjector);
 }
-(async function boot(){wireEvents();renderWords();await initFirebase();})();
+
+function setupPremiumMotion(){
+  const hero=document.querySelector('.hero');
+  const visual=document.querySelector('.hero-visual');
+  if(!hero||!visual)return;
+  const cards=[...document.querySelectorAll('.float-card')];
+  const principles=[...document.querySelectorAll('.principle')];
+  let raf=0,targetX=0,targetY=0,currentX=0,currentY=0;
+  const render=()=>{
+    currentX += (targetX-currentX)*0.08;
+    currentY += (targetY-currentY)*0.08;
+    visual.style.transform=`rotateY(${currentX*5}deg) rotateX(${currentY*-4}deg)`;
+    cards.forEach((card,i)=>{
+      const m=(i%2===0?1:-1)*(8+i*1.5);
+      card.style.transform=`translate3d(${currentX*m}px, ${currentY*m}px, ${22+i*6}px)`;
+    });
+    principles.forEach((card,i)=>{
+      card.style.transform=`translateY(${Math.sin((Date.now()/900)+(i*.9))*2}px)`;
+    });
+    raf=requestAnimationFrame(render);
+  };
+  hero.addEventListener('pointermove',e=>{
+    const rect=hero.getBoundingClientRect();
+    targetX=((e.clientX-rect.left)/rect.width-.5)*2;
+    targetY=((e.clientY-rect.top)/rect.height-.5)*2;
+  });
+  hero.addEventListener('pointerleave',()=>{targetX=0;targetY=0;});
+  if(!document.body.dataset.motionReady){
+    document.body.dataset.motionReady='1';
+    render();
+  }
+}
+
+(async function boot(){wireEvents();renderWords();setupPremiumMotion();await initFirebase();})();

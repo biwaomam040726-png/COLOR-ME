@@ -1,4 +1,4 @@
-# COLOR ME V3 — เกมรู้จักตัวเองผ่าน 5 คำ
+# COLOR ME V4 — เกมรู้จักตัวเองผ่าน 5 คำ
 
 Static Web App สำหรับ **GitHub Pages + Firebase Authentication + Cloud Firestore**
 
@@ -294,3 +294,10 @@ biwaomam040726-png.github.io
 - ป้าย `DEMO` ต้องไม่แสดง
 - หน้า Admin ต้องไม่ขึ้น `ยังไม่ได้ตั้งค่า Firebase`
 - Login Admin ต้องใช้บัญชีจาก Firebase Authentication
+
+
+## V4 UI
+- พื้นหลังคลื่นแสงและ mesh gradient
+- วงล้อเคลื่อนไหวแบบลอยตัว
+- การ์ดลอยและ parallax ตามเมาส์
+- ปุ่มเงาไลท์และ glassmorphism พรีเมียม
