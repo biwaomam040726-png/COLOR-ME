@@ -438,7 +438,12 @@ function startAdminRealtime(){
   state.unsubscribeResponses=onSnapshot(query(collection(fb.db,"responses"),orderBy("createdAt","desc")),snap=>{
     const added=state.initialResponsesLoaded?snap.docChanges().filter(c=>c.type==="added").map(c=>({id:c.doc.id,...c.doc.data()})):[];
     state.responses=snap.docs.map(d=>({id:d.id,...d.data()}));
-    setLiveUpdatedNow();renderAdmin();
+    setLiveUpdatedNow();
+    if(isProjectorOpen()){
+      renderProjector();
+      pulseProjectorRealtime(added.length);
+    }
+    renderAdmin();
     if(added.length)notifyProjectorNewData(added);
     state.initialResponsesLoaded=true;
   });
@@ -681,7 +686,7 @@ function showProjectorSlide(index,animate=true){
 }
 function startProjectorSlideshow(){clearInterval(state.projectorSlideTimer);state.projectorSlideTimer=null;}
 async function openProjector(mode="tv"){
-  state.projectorMode="tv";state.projectorSlide=0;const p=$("#projector");p.classList.remove("hidden");p.classList.add("tv-mode");document.body.style.overflow="hidden";$("#projectorModeLabel").innerHTML='<i></i> PROJEC DISPLAY · ONE SCREEN';showProjectorSlide(0,false);renderProjector();clearInterval(state.projectorTimer);state.projectorTimer=setInterval(()=>{if(isProjectorOpen())$("#projectorUpdatedAt").textContent=`Projec Display แบบหน้าเดียว · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;},1000);clearInterval(state.projectorSlideTimer);state.projectorSlideTimer=null;
+  state.projectorMode="tv";state.projectorSlide=0;const p=$("#projector");p.classList.remove("hidden");p.classList.add("tv-mode");document.body.style.overflow="hidden";$("#projectorModeLabel").innerHTML='<i></i> PROJEC DISPLAY · REALTIME';showProjectorSlide(0,false);renderProjector();clearInterval(state.projectorTimer);state.projectorTimer=setInterval(()=>{if(isProjectorOpen())$("#projectorUpdatedAt").textContent=`Projec Display แบบเรียลไทม์ · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;},1000);clearInterval(state.projectorSlideTimer);state.projectorSlideTimer=null;
   if(document.documentElement.requestFullscreen){try{await document.documentElement.requestFullscreen();}catch(e){}}
 }
 async function closeProjector(){const p=$("#projector");p.classList.add("hidden");p.classList.remove("tv-mode");document.body.style.overflow="";clearInterval(state.projectorTimer);clearInterval(state.projectorSlideTimer);state.projectorTimer=null;state.projectorSlideTimer=null;if(document.fullscreenElement){try{await document.exitFullscreen();}catch(e){}}}
@@ -689,7 +694,7 @@ function renderProjector(){
   if($("#projector").classList.contains("hidden"))return;
   const rows=filteredResponses(),avg=averageScores(rows),sid=selectedSessionId(),s=state.sessions.find(x=>x.id===sid);
   $("#projectorSessionName").textContent=s?.name||"ผลรวมทุก Session";
-  $("#projectorUpdatedAt").textContent=`Projec Display แบบหน้าเดียว · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;
+  $("#projectorUpdatedAt").textContent=`Projec Display แบบเรียลไทม์ · ข้อมูลล่าสุด ${formatTimeOnly(state.liveUpdatedAt||new Date())}`;
   $("#projTotal").textContent=rows.length;
   COLORS.forEach(k=>$("#proj"+k[0].toUpperCase()+k.slice(1)).textContent=rows.filter(r=>r.dominant===k).length);
   drawGroupRadar("projectorRadar",avg,"projector");
@@ -857,39 +862,62 @@ async function resumeAudio(){
   if(!state.soundEnabled||!ensureAudio())return false;
   try{if(state.audio.ctx.state==="suspended")await state.audio.ctx.resume();return state.audio.ctx.state==="running";}catch(e){return false;}
 }
+function playPianoTone(freq,when,accent=1){
+  if(!state.audio?.ctx||!state.audio?.music)return;
+  const {ctx,music}=state.audio;
+  const partials=[{ratio:1,gain:.030},{ratio:2,gain:.010},{ratio:3,gain:.0045}];
+  partials.forEach((p,i)=>{
+    const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
+    osc.type=i===0?"sine":"triangle";
+    osc.frequency.setValueAtTime(freq*p.ratio,when);
+    osc.detune.setValueAtTime(i===0?3:-2,when);osc.detune.linearRampToValueAtTime(0,when+.045);
+    filter.type="lowpass";filter.frequency.setValueAtTime(i===0?3200:2200,when);filter.Q.value=.35;
+    const peak=p.gain*accent;
+    gain.gain.setValueAtTime(.0001,when);
+    gain.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),when+.012);
+    gain.gain.exponentialRampToValueAtTime(Math.max(.0001,peak*.28),when+.16);
+    gain.gain.exponentialRampToValueAtTime(.0001,when+.62);
+    osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.68);
+  });
+}
+function playNylonPluck(freq,when,accent=1){
+  if(!state.audio?.ctx||!state.audio?.music)return;
+  const {ctx,music}=state.audio;
+  const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
+  osc.type="triangle";osc.frequency.setValueAtTime(freq,when);osc.frequency.exponentialRampToValueAtTime(freq*.996,when+.25);
+  filter.type="lowpass";filter.frequency.setValueAtTime(1900,when);filter.frequency.exponentialRampToValueAtTime(750,when+.42);filter.Q.value=.7;
+  const peak=.020*accent;gain.gain.setValueAtTime(.0001,when);gain.gain.exponentialRampToValueAtTime(peak,when+.006);gain.gain.exponentialRampToValueAtTime(.0001,when+.48);
+  osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(when);osc.stop(when+.52);
+}
 async function startAmbientMusic(){
   if(state.audioStarted||!state.soundEnabled)return;
   if(!await resumeAudio())return;
   const {ctx,music}=state.audio;
-  const chord=[110,164.81,220,277.18];
-  const voices=[];
-  chord.forEach((freq,i)=>{
-    const osc=ctx.createOscillator();
-    const filter=ctx.createBiquadFilter();
-    const gain=ctx.createGain();
-    osc.type=i%2===0?"sine":"triangle";
-    osc.frequency.value=freq;
-    filter.type="lowpass";filter.frequency.value=700+(i*120);filter.Q.value=.5;
-    gain.gain.value=0;
-    osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start();
-    voices.push({osc,gain,target:[.024,.016,.013,.01][i]});
-  });
-  const shimmer=ctx.createOscillator(),shimmerGain=ctx.createGain(),shimmerFilter=ctx.createBiquadFilter();
-  shimmer.type="sine";shimmer.frequency.value=554.37;shimmerFilter.type="lowpass";shimmerFilter.frequency.value=1200;shimmerGain.gain.value=0;
-  shimmer.connect(shimmerFilter);shimmerFilter.connect(shimmerGain);shimmerGain.connect(music);shimmer.start();
-  voices.forEach((v,i)=>audioRamp(v.gain.gain,v.target,1.0+i*.15));audioRamp(shimmerGain.gain,.0035,1.8);audioRamp(music.gain,.20,2.0);
-  const lfo=ctx.createOscillator(),lfoGain=ctx.createGain();lfo.type="sine";lfo.frequency.value=.11;lfoGain.gain.value=.025;lfo.connect(lfoGain);lfoGain.connect(music.gain);lfo.start();
-  state.audio.voices=voices;state.audio.shimmer=shimmer;state.audio.shimmerGain=shimmerGain;state.audio.lfo=lfo;state.audioStarted=true;
-  const arp=[220,277.18,329.63,440,329.63,277.18];let arpStep=0;
+  const progression=[
+    [261.63,329.63,392.00,493.88],
+    [220.00,261.63,329.63,392.00],
+    [174.61,220.00,261.63,329.63],
+    [196.00,246.94,293.66,329.63]
+  ];
+  const bass=[130.81,110.00,87.31,98.00];
+  const melody=[0,1,2,1,3,2,1,2];
+  let step=0;
+  audioRamp(music.gain,.32,.9);
   clearInterval(state.musicTimer);
-  state.musicTimer=setInterval(()=>{
+  const tick=()=>{
     if(!state.soundEnabled||!state.audioStarted||!state.audio?.ctx||state.audio.ctx.state!=="running")return;
-    const {ctx,music}=state.audio;const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
-    osc.type="triangle";osc.frequency.value=arp[arpStep%arp.length];arpStep++;
-    filter.type="lowpass";filter.frequency.value=1500;filter.Q.value=.7;
-    const now=ctx.currentTime;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.010,now+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+.32);
-    osc.connect(filter);filter.connect(gain);gain.connect(music);osc.start(now);osc.stop(now+.36);
-  },720);
+    const now=ctx.currentTime+.018;
+    const chordIndex=Math.floor(step/8)%progression.length;
+    const noteIndex=melody[step%melody.length];
+    const chord=progression[chordIndex];
+    playPianoTone(chord[noteIndex],now,(step%4===0)?1.10:.82);
+    if(step%2===0)playNylonPluck(bass[chordIndex],now+.015,(step%8===0)?1.0:.72);
+    if(step%8===7)playPianoTone(chord[3]*2,now+.09,.42);
+    step++;
+  };
+  state.audioStarted=true;
+  tick();
+  state.musicTimer=setInterval(tick,390);
   updateSoundButton();
 }
 async function setSoundEnabled(enabled){
@@ -960,6 +988,16 @@ function playNewDataChime(count=1){
   if(count>1)setTimeout(()=>playUiClick("confirm"),320);
 }
 function isProjectorOpen(){const p=$("#projector");return !!p&&!p.classList.contains("hidden");}
+function pulseProjectorRealtime(newCount=0){
+  const p=$("#projector");if(!p||p.classList.contains("hidden"))return;
+  p.classList.remove("realtime-pulse");void p.offsetWidth;p.classList.add("realtime-pulse");
+  const label=$("#projectorModeLabel");
+  if(label){
+    label.classList.remove("realtime-hit");void label.offsetWidth;label.classList.add("realtime-hit");
+    label.innerHTML=`<i></i> PROJEC DISPLAY · REALTIME${newCount?` +${newCount}`:""}`;
+    setTimeout(()=>{if(isProjectorOpen())label.innerHTML='<i></i> PROJEC DISPLAY · REALTIME';},1900);
+  }
+}
 function showProjectorNewDataToast(rows=[]){
   const p=$("#projector");if(!p||p.classList.contains("hidden"))return;
   p.querySelector('.projector-new-data-toast')?.remove();const latest=rows[0];const el=document.createElement('div');el.className='projector-new-data-toast';el.innerHTML=`<span class="new-data-icon">✦</span><div><b>ได้รับข้อมูลใหม่${rows.length>1?` ${rows.length} รายการ`:''}</b><small>${escapeHtml(latest?.fullName||'ผู้เข้าร่วม')} · ${escapeHtml(latest?.organization||'')}</small></div>`;p.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));setTimeout(()=>el.classList.remove('show'),2800);setTimeout(()=>el.remove(),3300);

@@ -754,3 +754,8 @@ table th.col-check, table td.col-check{text-align:center}
 @keyframes newParticipantGlow{0%,100%{transform:translateX(0);filter:brightness(1)}50%{transform:translateX(3px);filter:brightness(1.12)}}
 .projector .chart-wrap,.projector .proj-chart{backface-visibility:hidden;transform:translateZ(0)}
 @media(max-width:700px){.projector-new-data-toast{top:max(12px,env(safe-area-inset-top));min-width:0;width:calc(100vw - 28px);padding:12px 14px;border-radius:16px}.projector-new-data-toast .new-data-icon{width:36px;height:36px}}
+
+/* ===== V17: clean piano/game ambience + Firestore realtime projector ===== */
+#projectorModeLabel.realtime-hit{animation:realtimeChipHit .72s ease-out}
+@keyframes realtimeChipHit{0%{transform:scale(.94);box-shadow:0 0 0 0 rgba(77,235,191,.38)}45%{transform:scale(1.045);box-shadow:0 0 0 12px rgba(77,235,191,.08),0 0 34px rgba(77,235,191,.26)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(77,235,191,0)}}
+.projector.realtime-pulse .projector-updated{color:#79f1c9;transition:color .45s ease}
